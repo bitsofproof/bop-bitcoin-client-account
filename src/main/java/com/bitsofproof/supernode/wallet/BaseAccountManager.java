@@ -463,7 +463,6 @@ public abstract class BaseAccountManager implements AccountManager
 			boolean modified = false;
 			if ( t.getOffendingTx () == null && !t.isExpired () )
 			{
-				log.trace ("Update account manager with " + t.getHash ());
 				TransactionOutput spend = null;
 				for ( TransactionInput i : t.getInputs () )
 				{

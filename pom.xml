@@ -48,7 +48,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<slf4j.version>1.6.6</slf4j.version>
 		<java.compiler.version>1.7</java.compiler.version>
-		<bop-bitcoin-server-api.version>3.3.0</bop-bitcoin-server-api.version>
+		<bop-bitcoin-server-api.version>3.3.2-SNAPSHOT</bop-bitcoin-server-api.version>
 	</properties>
 
 	<distributionManagement>
