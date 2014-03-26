@@ -461,8 +461,9 @@ public abstract class BaseAccountManager implements AccountManager
 		synchronized ( confirmed )
 		{
 			boolean modified = false;
-			if ( t.getOffendingTx () == null ) // TODO: this needs more rework
+			if ( t.getOffendingTx () == null && !t.isExpired () )
 			{
+				log.trace ("Update account manager with " + t.getHash ());
 				TransactionOutput spend = null;
 				for ( TransactionInput i : t.getInputs () )
 				{
@@ -540,6 +541,14 @@ public abstract class BaseAccountManager implements AccountManager
 			}
 			else
 			{
+				if ( t.isExpired () )
+				{
+					log.trace ("Remove expired " + t.getHash ());
+				}
+				else
+				{
+					log.trace ("Remove " + t.getHash () + " because of " + t.getOffendingTx ());
+				}
 				for ( long ix = 0; ix < t.getOutputs ().size (); ++ix )
 				{
 					TransactionOutput out = null;
@@ -558,7 +567,7 @@ public abstract class BaseAccountManager implements AccountManager
 					}
 					if ( out != null )
 					{
-						log.trace ("Remove DS " + out.getTxHash () + " [" + out.getIx () + "] (" + out.getOutputAddress () + ")"
+						log.trace ("Remove " + out.getTxHash () + " [" + out.getIx () + "] (" + out.getOutputAddress () + ")"
 								+ out.getValue ());
 					}
 					modified |= out != null;
