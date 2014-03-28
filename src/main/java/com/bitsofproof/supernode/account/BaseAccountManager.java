@@ -93,10 +93,12 @@ public abstract class BaseAccountManager implements AccountManager
 
 	protected void reset ()
 	{
-		confirmed = createConfirmedUTXO ();
-		change = createChangeUTXO ();
-		receiving = createReceivingUTXO ();
-		sending = createSendingUTXO ();
+		synchronized ( this ) {
+			confirmed = createConfirmedUTXO ();
+			change = createChangeUTXO ();
+			receiving = createReceivingUTXO ();
+			sending = createSendingUTXO ();
+		}
 	}
 
 	public boolean isOwnAddress (Address address)
@@ -383,7 +385,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public Transaction pay (List<Address> receiver, List<Long> amounts, long fee, boolean senderPaysFee) throws ValidationException
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			long amount = 0;
 			for ( Long a : amounts )
@@ -458,7 +460,7 @@ public abstract class BaseAccountManager implements AccountManager
 
 	public boolean updateWithTransaction (Transaction t)
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			boolean modified = false;
 			if ( t.getOffendingTx () == null && !t.isExpired () )
@@ -580,7 +582,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public long getBalance ()
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			return confirmed.getTotal () + change.getTotal () + receiving.getTotal ();
 		}
@@ -589,7 +591,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public long getConfirmed ()
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			return confirmed.getTotal ();
 		}
@@ -598,7 +600,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public long getSending ()
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			return sending.getTotal ();
 		}
@@ -607,7 +609,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public long getReceiving ()
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			return receiving.getTotal ();
 		}
@@ -616,7 +618,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public long getChange ()
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			return change.getTotal ();
 		}
