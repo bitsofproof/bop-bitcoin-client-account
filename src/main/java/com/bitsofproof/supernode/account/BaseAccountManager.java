@@ -300,7 +300,7 @@ public abstract class BaseAccountManager implements AccountManager
 		return hash;
 	}
 
-	protected List<TransactionOutput> getSufficientSources (long amount, long fee, String color)
+	protected List<TransactionOutput> getSufficientSources (long amount, long fee)
 	{
 		List<TransactionOutput> candidates = new ArrayList<TransactionOutput> ();
 		candidates.addAll (confirmed.getUTXO ());
@@ -332,33 +332,11 @@ public abstract class BaseAccountManager implements AccountManager
 		long sum = 0;
 		for ( TransactionOutput o : candidates )
 		{
-			if ( color == null )
+			sum += o.getValue ();
+			result.add (o);
+			if ( sum >= (amount + fee) )
 			{
-				if ( o.getColor () == null )
-				{
-					sum += o.getValue ();
-					result.add (o);
-					if ( sum >= (amount + fee) )
-					{
-						return result;
-					}
-				}
-			}
-			else
-			{
-				if ( o.getColor ().equals (color) )
-				{
-					sum += o.getValue ();
-					result.add (o);
-					if ( sum >= amount )
-					{
-						if ( fee > 0 )
-						{
-							result.addAll (getSufficientSources (0, fee, null));
-						}
-						return result;
-					}
-				}
+				return result;
 			}
 		}
 		return null;
@@ -391,7 +369,7 @@ public abstract class BaseAccountManager implements AccountManager
 				amount += a;
 			}
 			log.trace ("pay " + amount + (senderPaysFee ? " + " + fee : ""));
-			List<TransactionOutput> sources = getSufficientSources (amount, senderPaysFee ? fee : 0, null);
+			List<TransactionOutput> sources = getSufficientSources (amount, senderPaysFee ? fee : 0);
 			if ( sources == null )
 			{
 				throw new ValidationException ("Insufficient funds to pay " + amount + (senderPaysFee ? " + " + fee : ""));
