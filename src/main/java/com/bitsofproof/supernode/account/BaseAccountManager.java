@@ -69,7 +69,7 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	private final List<AccountListener> accountListener = Collections.synchronizedList (new ArrayList<AccountListener> ());
-	private final Map<String, Transaction> transactions = new HashMap<String, Transaction> ();
+	private final Map<String, Transaction> transactions = new HashMap<> ();
 
 	protected UTXO createConfirmedUTXO ()
 	{
@@ -93,10 +93,12 @@ public abstract class BaseAccountManager implements AccountManager
 
 	protected void reset ()
 	{
-		confirmed = createConfirmedUTXO ();
-		change = createChangeUTXO ();
-		receiving = createReceivingUTXO ();
-		sending = createSendingUTXO ();
+		synchronized ( this ) {
+			confirmed = createConfirmedUTXO ();
+			change = createChangeUTXO ();
+			receiving = createReceivingUTXO ();
+			sending = createSendingUTXO ();
+		}
 	}
 
 	public boolean isOwnAddress (Address address)
@@ -209,7 +211,7 @@ public abstract class BaseAccountManager implements AccountManager
 
 	public static byte[] hashTransaction (Transaction transaction, int inr, int hashType, byte[] script) throws ValidationException
 	{
-		Transaction copy = null;
+		Transaction copy;
 		try
 		{
 			copy = transaction.clone ();
@@ -277,7 +279,7 @@ public abstract class BaseAccountManager implements AccountManager
 		}
 		if ( (hashType & ScriptFormat.SIGHASH_ANYONECANPAY) != 0 )
 		{
-			List<TransactionInput> oneIn = new ArrayList<TransactionInput> ();
+			List<TransactionInput> oneIn = new ArrayList<> ();
 			oneIn.add (copy.getInputs ().get (inr));
 			copy.setInputs (oneIn);
 		}
@@ -294,7 +296,7 @@ public abstract class BaseAccountManager implements AccountManager
 			a.update (new byte[] { (byte) (hashType & 0xff), 0, 0, 0 });
 			hash = a.digest (a.digest ());
 		}
-		catch ( NoSuchAlgorithmException e )
+		catch ( NoSuchAlgorithmException ignored)
 		{
 		}
 		return hash;
@@ -302,7 +304,7 @@ public abstract class BaseAccountManager implements AccountManager
 
 	protected List<TransactionOutput> getSufficientSources (long amount, long fee)
 	{
-		List<TransactionOutput> candidates = new ArrayList<TransactionOutput> ();
+		List<TransactionOutput> candidates = new ArrayList<> ();
 		candidates.addAll (confirmed.getUTXO ());
 		// prefer confirmed
 		Collections.sort (candidates, new Comparator<TransactionOutput> ()
@@ -314,7 +316,7 @@ public abstract class BaseAccountManager implements AccountManager
 				return o1.getValue () < o2.getValue () ? -1 : o1.getValue () > o2.getValue () ? 1 : 0;
 			}
 		});
-		List<TransactionOutput> changelist = new ArrayList<TransactionOutput> ();
+		List<TransactionOutput> changelist = new ArrayList<> ();
 		changelist.addAll (change.getUTXO ());
 		// ... then change
 		Collections.sort (changelist, new Comparator<TransactionOutput> ()
@@ -328,7 +330,7 @@ public abstract class BaseAccountManager implements AccountManager
 		});
 		candidates.addAll (changelist);
 
-		List<TransactionOutput> result = new ArrayList<TransactionOutput> ();
+		List<TransactionOutput> result = new ArrayList<> ();
 		long sum = 0;
 		for ( TransactionOutput o : candidates )
 		{
@@ -351,9 +353,9 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public Transaction pay (Address receiver, long amount, long fee, boolean senderPaysFee) throws ValidationException
 	{
-		List<Address> a = new ArrayList<Address> ();
+		List<Address> a = new ArrayList<> ();
 		a.add (receiver);
-		List<Long> v = new ArrayList<Long> ();
+		List<Long> v = new ArrayList<> ();
 		v.add (amount);
 		return pay (a, v, fee, senderPaysFee);
 	}
@@ -361,7 +363,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public Transaction pay (List<Address> receiver, List<Long> amounts, long fee, boolean senderPaysFee) throws ValidationException
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			long amount = 0;
 			for ( Long a : amounts )
@@ -380,7 +382,7 @@ public abstract class BaseAccountManager implements AccountManager
 				log.trace ("using input " + o.getTxHash () + "[" + o.getIx () + "] " + o.getValue ());
 				in += o.getValue ();
 			}
-			List<TransactionSink> sinks = new ArrayList<TransactionSink> ();
+			List<TransactionSink> sinks = new ArrayList<> ();
 			Iterator<Long> ai = amounts.iterator ();
 			for ( Address r : receiver )
 			{
@@ -406,9 +408,9 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public Transaction pay (Address receiver, long amount, boolean senderPaysFee) throws ValidationException
 	{
-		List<Address> a = new ArrayList<Address> ();
+		List<Address> a = new ArrayList<> ();
 		a.add (receiver);
-		List<Long> v = new ArrayList<Long> ();
+		List<Long> v = new ArrayList<> ();
 		v.add (amount);
 		return pay (a, v, senderPaysFee);
 	}
@@ -418,7 +420,7 @@ public abstract class BaseAccountManager implements AccountManager
 	{
 		long fee = MINIMUM_FEE;
 		long estimate = 0;
-		Transaction t = null;
+		Transaction t;
 
 		do
 		{
@@ -436,7 +438,7 @@ public abstract class BaseAccountManager implements AccountManager
 
 	public boolean updateWithTransaction (Transaction t)
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			boolean modified = false;
 			if ( t.getOffendingTx () == null && !t.isExpired () )
@@ -528,7 +530,7 @@ public abstract class BaseAccountManager implements AccountManager
 				}
 				for ( long ix = 0; ix < t.getOutputs ().size (); ++ix )
 				{
-					TransactionOutput out = null;
+					TransactionOutput out;
 					out = confirmed.remove (t.getHash (), ix);
 					if ( out == null )
 					{
@@ -558,7 +560,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public long getBalance ()
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			return confirmed.getTotal () + change.getTotal () + receiving.getTotal ();
 		}
@@ -567,7 +569,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public long getConfirmed ()
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			return confirmed.getTotal ();
 		}
@@ -576,7 +578,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public long getSending ()
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			return sending.getTotal ();
 		}
@@ -585,7 +587,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public long getReceiving ()
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			return receiving.getTotal ();
 		}
@@ -594,7 +596,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public long getChange ()
 	{
-		synchronized ( confirmed )
+		synchronized ( this )
 		{
 			return change.getTotal ();
 		}
@@ -627,7 +629,10 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public void addAccountListener (AccountListener listener)
 	{
-		accountListener.add (listener);
+		if (!accountListener.contains (listener))
+		{
+			accountListener.add (listener);
+		}
 	}
 
 	@Override
@@ -666,7 +671,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public List<Transaction> getTransactions ()
 	{
-		List<Transaction> tl = new ArrayList<Transaction> ();
+		List<Transaction> tl = new ArrayList<> ();
 		tl.addAll (transactions.values ());
 		Collections.sort (tl, new Comparator<Transaction> ()
 		{
