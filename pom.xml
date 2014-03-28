@@ -66,7 +66,7 @@
 	<scm>
 		<connection>scm:git:git@github.com:bitsofproof/bop-bitcoin-client-account.git</connection>
 		<developerConnection>scm:git:git@github.com:bitsofproof/bop-bitcoin-client-account.git</developerConnection>
-		<url>https://github.com/bitsofproof/supernode</url>
+		<url>https://github.com/bitsofproof/bop-bitcoin-client-account</url>
 		<tag>HEAD</tag>
 	</scm>
 
