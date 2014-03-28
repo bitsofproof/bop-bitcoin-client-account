@@ -651,11 +651,9 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public void addAccountListener (AccountListener listener)
 	{
-		synchronized (accountListener) {
-			if (!accountListener.contains (listener))
-			{
-				accountListener.add (listener);
-			}
+		if (!accountListener.contains (listener))
+		{
+			accountListener.add (listener);
 		}
 	}
 
