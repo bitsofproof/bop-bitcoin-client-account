@@ -68,7 +68,7 @@ public abstract class BaseAccountManager implements AccountManager
 		this.created = created;
 	}
 
-	private final List<AccountListener> accountListener = Collections.synchronizedList (new ArrayList<AccountListener> ());
+	private final Set<AccountListener> accountListener = Collections.synchronizedSet (new HashSet<AccountListener> ());
 	private final Map<String, Transaction> transactions = new HashMap<> ();
 
 	protected UTXO createConfirmedUTXO ()
@@ -91,14 +91,12 @@ public abstract class BaseAccountManager implements AccountManager
 		return new InMemoryUTXO ();
 	}
 
-	protected void reset ()
+	protected synchronized void reset ()
 	{
-		synchronized ( this ) {
-			confirmed = createConfirmedUTXO ();
-			change = createChangeUTXO ();
-			receiving = createReceivingUTXO ();
-			sending = createSendingUTXO ();
-		}
+		confirmed = createConfirmedUTXO ();
+		change = createChangeUTXO ();
+		receiving = createReceivingUTXO ();
+		sending = createSendingUTXO ();
 	}
 
 	public boolean isOwnAddress (Address address)
@@ -296,7 +294,7 @@ public abstract class BaseAccountManager implements AccountManager
 			a.update (new byte[] { (byte) (hashType & 0xff), 0, 0, 0 });
 			hash = a.digest (a.digest ());
 		}
-		catch ( NoSuchAlgorithmException ignored)
+		catch ( NoSuchAlgorithmException ignored )
 		{
 		}
 		return hash;
@@ -361,48 +359,45 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	@Override
-	public Transaction pay (List<Address> receiver, List<Long> amounts, long fee, boolean senderPaysFee) throws ValidationException
+	public synchronized Transaction pay (List<Address> receiver, List<Long> amounts, long fee, boolean senderPaysFee) throws ValidationException
 	{
-		synchronized ( this )
+		long amount = 0;
+		for ( Long a : amounts )
 		{
-			long amount = 0;
-			for ( Long a : amounts )
-			{
-				amount += a;
-			}
-			log.trace ("pay " + amount + (senderPaysFee ? " + " + fee : ""));
-			List<TransactionOutput> sources = getSufficientSources (amount, senderPaysFee ? fee : 0);
-			if ( sources == null )
-			{
-				throw new ValidationException ("Insufficient funds to pay " + amount + (senderPaysFee ? " + " + fee : ""));
-			}
-			long in = 0;
-			for ( TransactionOutput o : sources )
-			{
-				log.trace ("using input " + o.getTxHash () + "[" + o.getIx () + "] " + o.getValue ());
-				in += o.getValue ();
-			}
-			List<TransactionSink> sinks = new ArrayList<> ();
-			Iterator<Long> ai = amounts.iterator ();
-			for ( Address r : receiver )
-			{
-				sinks.add (new TransactionSink (r, ai.next ()));
-			}
-			if ( !senderPaysFee )
-			{
-				TransactionSink last = sinks.get (sinks.size () - 1);
-				sinks.set (sinks.size () - 1, new TransactionSink (last.getAddress (),
-						Math.max (last.getValue () - fee, 0)));
-			}
-			if ( ((in - amount) - (senderPaysFee ? fee : 0)) >= MINIMUM_FEE )
-			{
-				TransactionSink change = new TransactionSink (getNextAddress (), in - amount - (senderPaysFee ? fee : 0));
-				log.trace ("change to " + change.getAddress () + " " + change.getValue ());
-				sinks.add (change);
-			}
-			Collections.shuffle (sinks);
-			return createSpend (sources, sinks, fee);
+			amount += a;
 		}
+		log.trace ("pay " + amount + (senderPaysFee ? " + " + fee : ""));
+		List<TransactionOutput> sources = getSufficientSources (amount, senderPaysFee ? fee : 0);
+		if ( sources == null )
+		{
+			throw new ValidationException ("Insufficient funds to pay " + amount + (senderPaysFee ? " + " + fee : ""));
+		}
+		long in = 0;
+		for ( TransactionOutput o : sources )
+		{
+			log.trace ("using input " + o.getTxHash () + "[" + o.getIx () + "] " + o.getValue ());
+			in += o.getValue ();
+		}
+		List<TransactionSink> sinks = new ArrayList<> ();
+		Iterator<Long> ai = amounts.iterator ();
+		for ( Address r : receiver )
+		{
+			sinks.add (new TransactionSink (r, ai.next ()));
+		}
+		if ( !senderPaysFee )
+		{
+			TransactionSink last = sinks.get (sinks.size () - 1);
+			sinks.set (sinks.size () - 1, new TransactionSink (last.getAddress (),
+					Math.max (last.getValue () - fee, 0)));
+		}
+		if ( ((in - amount) - (senderPaysFee ? fee : 0)) >= MINIMUM_FEE )
+		{
+			TransactionSink change = new TransactionSink (getNextAddress (), in - amount - (senderPaysFee ? fee : 0));
+			log.trace ("change to " + change.getAddress () + " " + change.getValue ());
+			sinks.add (change);
+		}
+		Collections.shuffle (sinks);
+		return createSpend (sources, sinks, fee);
 	}
 
 	@Override
@@ -436,192 +431,174 @@ public abstract class BaseAccountManager implements AccountManager
 		return t;
 	}
 
-	public boolean updateWithTransaction (Transaction t)
+	public synchronized boolean updateWithTransaction (Transaction t)
 	{
-		synchronized ( this )
+		boolean modified = false;
+		if ( t.getOffendingTx () == null && !t.isExpired () )
 		{
-			boolean modified = false;
-			if ( t.getOffendingTx () == null && !t.isExpired () )
+			TransactionOutput spend = null;
+			for ( TransactionInput i : t.getInputs () )
 			{
-				TransactionOutput spend = null;
-				for ( TransactionInput i : t.getInputs () )
+				spend = confirmed.get (i.getSourceHash (), i.getIx ());
+				if ( spend != null )
 				{
-					spend = confirmed.get (i.getSourceHash (), i.getIx ());
-					if ( spend != null )
-					{
-						confirmed.remove (i.getSourceHash (), i.getIx ());
-						log.trace ("Spend settled output " + i.getSourceHash () + " [" + i.getIx () + "] " + spend.getValue ());
-					}
-					else
-					{
-						spend = change.get (i.getSourceHash (), i.getIx ());
-						if ( spend != null )
-						{
-							change.remove (i.getSourceHash (), i.getIx ());
-							log.trace ("Spend change output " + i.getSourceHash () + " [" + i.getIx () + "] " + spend.getValue ());
-						}
-						else
-						{
-							spend = receiving.get (i.getSourceHash (), i.getIx ());
-							if ( spend != null )
-							{
-								receiving.remove (i.getSourceHash (), i.getIx ());
-								log.trace ("Spend receiving output " + i.getSourceHash () + " [" + i.getIx () + "] " + spend.getValue ());
-							}
-						}
-					}
-				}
-				modified = spend != null;
-				for ( TransactionOutput o : t.getOutputs () )
-				{
-					confirmed.remove (o.getTxHash (), o.getIx ());
-					change.remove (o.getTxHash (), o.getIx ());
-					receiving.remove (o.getTxHash (), o.getIx ());
-					sending.remove (o.getTxHash (), o.getIx ());
-
-					if ( isOwnAddress (o.getOutputAddress ()) )
-					{
-						modified = true;
-						if ( t.getBlockHash () != null )
-						{
-							confirmed.add (o);
-							log.trace ("Settled " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") " + o.getValue ());
-						}
-						else
-						{
-							if ( spend != null )
-							{
-								change.add (o);
-								log.trace ("Change " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") "
-										+ o.getValue ());
-							}
-							else
-							{
-								receiving.add (o);
-								log.trace ("Receiving " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") "
-										+ o.getValue ());
-							}
-						}
-					}
-					else
-					{
-						if ( t.getBlockHash () == null && spend != null )
-						{
-							modified = true;
-							sending.add (o);
-							log.trace ("Sending " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") " + o.getValue ());
-						}
-					}
-				}
-				if ( modified )
-				{
-					transactions.put (t.getHash (), t);
-				}
-			}
-			else
-			{
-				if ( t.isExpired () )
-				{
-					log.trace ("Remove expired " + t.getHash ());
+					confirmed.remove (i.getSourceHash (), i.getIx ());
+					log.trace ("Spend settled output " + i.getSourceHash () + " [" + i.getIx () + "] " + spend.getValue ());
 				}
 				else
 				{
-					log.trace ("Remove " + t.getHash () + " because of " + t.getOffendingTx ());
+					spend = change.get (i.getSourceHash (), i.getIx ());
+					if ( spend != null )
+					{
+						change.remove (i.getSourceHash (), i.getIx ());
+						log.trace ("Spend change output " + i.getSourceHash () + " [" + i.getIx () + "] " + spend.getValue ());
+					}
+					else
+					{
+						spend = receiving.get (i.getSourceHash (), i.getIx ());
+						if ( spend != null )
+						{
+							receiving.remove (i.getSourceHash (), i.getIx ());
+							log.trace ("Spend receiving output " + i.getSourceHash () + " [" + i.getIx () + "] " + spend.getValue ());
+						}
+					}
 				}
-				for ( long ix = 0; ix < t.getOutputs ().size (); ++ix )
-				{
-					TransactionOutput out;
-					out = confirmed.remove (t.getHash (), ix);
-					if ( out == null )
-					{
-						out = change.remove (t.getHash (), ix);
-					}
-					if ( out == null )
-					{
-						out = receiving.remove (t.getHash (), ix);
-					}
-					if ( out == null )
-					{
-						out = sending.remove (t.getHash (), ix);
-					}
-					if ( out != null )
-					{
-						log.trace ("Remove " + out.getTxHash () + " [" + out.getIx () + "] (" + out.getOutputAddress () + ")"
-								+ out.getValue ());
-					}
-					modified |= out != null;
-				}
-				transactions.remove (t.getHash ());
 			}
-			return modified;
-		}
-	}
+			modified = spend != null;
+			for ( TransactionOutput o : t.getOutputs () )
+			{
+				confirmed.remove (o.getTxHash (), o.getIx ());
+				change.remove (o.getTxHash (), o.getIx ());
+				receiving.remove (o.getTxHash (), o.getIx ());
+				sending.remove (o.getTxHash (), o.getIx ());
 
-	@Override
-	public long getBalance ()
-	{
-		synchronized ( this )
+				if ( isOwnAddress (o.getOutputAddress ()) )
+				{
+					modified = true;
+					if ( t.getBlockHash () != null )
+					{
+						confirmed.add (o);
+						log.trace ("Settled " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") " + o.getValue ());
+					}
+					else
+					{
+						if ( spend != null )
+						{
+							change.add (o);
+							log.trace ("Change " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") "
+									+ o.getValue ());
+						}
+						else
+						{
+							receiving.add (o);
+							log.trace ("Receiving " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") "
+									+ o.getValue ());
+						}
+					}
+				}
+				else
+				{
+					if ( t.getBlockHash () == null && spend != null )
+					{
+						modified = true;
+						sending.add (o);
+						log.trace ("Sending " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") " + o.getValue ());
+					}
+				}
+			}
+			if ( modified )
+			{
+				transactions.put (t.getHash (), t);
+			}
+		}
+		else
 		{
-			return confirmed.getTotal () + change.getTotal () + receiving.getTotal ();
+			if ( t.isExpired () )
+			{
+				log.trace ("Remove expired " + t.getHash ());
+			}
+			else
+			{
+				log.trace ("Remove " + t.getHash () + " because of " + t.getOffendingTx ());
+			}
+			for ( long ix = 0; ix < t.getOutputs ().size (); ++ix )
+			{
+				TransactionOutput out;
+				out = confirmed.remove (t.getHash (), ix);
+				if ( out == null )
+				{
+					out = change.remove (t.getHash (), ix);
+				}
+				if ( out == null )
+				{
+					out = receiving.remove (t.getHash (), ix);
+				}
+				if ( out == null )
+				{
+					out = sending.remove (t.getHash (), ix);
+				}
+				if ( out != null )
+				{
+					log.trace ("Remove " + out.getTxHash () + " [" + out.getIx () + "] (" + out.getOutputAddress () + ")"
+							+ out.getValue ());
+				}
+				modified |= out != null;
+			}
+			transactions.remove (t.getHash ());
 		}
+		return modified;
 	}
 
 	@Override
-	public long getConfirmed ()
+	public synchronized long getBalance ()
 	{
-		synchronized ( this )
-		{
-			return confirmed.getTotal ();
-		}
+		return confirmed.getTotal () + change.getTotal () + receiving.getTotal ();
 	}
 
 	@Override
-	public long getSending ()
+	public synchronized long getConfirmed ()
 	{
-		synchronized ( this )
-		{
-			return sending.getTotal ();
-		}
+		return confirmed.getTotal ();
 	}
 
 	@Override
-	public long getReceiving ()
+	public synchronized long getSending ()
 	{
-		synchronized ( this )
-		{
-			return receiving.getTotal ();
-		}
+		return sending.getTotal ();
 	}
 
 	@Override
-	public long getChange ()
+	public synchronized long getReceiving ()
 	{
-		synchronized ( this )
-		{
-			return change.getTotal ();
-		}
+		return receiving.getTotal ();
 	}
 
 	@Override
-	public Collection<TransactionOutput> getConfirmedOutputs ()
+	public synchronized long getChange ()
+	{
+		return change.getTotal ();
+	}
+
+	@Override
+	public synchronized Collection<TransactionOutput> getConfirmedOutputs ()
 	{
 		return confirmed.getUTXO ();
 	}
 
 	@Override
-	public Collection<TransactionOutput> getSendingOutputs ()
+	public synchronized Collection<TransactionOutput> getSendingOutputs ()
 	{
 		return sending.getUTXO ();
 	}
 
 	@Override
-	public Collection<TransactionOutput> getReceivingOutputs ()
+	public synchronized Collection<TransactionOutput> getReceivingOutputs ()
 	{
 		return receiving.getUTXO ();
 	}
 
 	@Override
-	public Collection<TransactionOutput> getChangeOutputs ()
+	public synchronized Collection<TransactionOutput> getChangeOutputs ()
 	{
 		return change.getUTXO ();
 	}
@@ -629,10 +606,7 @@ public abstract class BaseAccountManager implements AccountManager
 	@Override
 	public void addAccountListener (AccountListener listener)
 	{
-		if (!accountListener.contains (listener))
-		{
-			accountListener.add (listener);
-		}
+		accountListener.add (listener);
 	}
 
 	@Override
@@ -643,18 +617,20 @@ public abstract class BaseAccountManager implements AccountManager
 
 	protected void notifyListener (Transaction t)
 	{
+		ArrayList<AccountListener> al = new ArrayList<> ();
 		synchronized ( accountListener )
 		{
-			for ( AccountListener l : accountListener )
+			al.addAll (accountListener);
+		}
+		for ( AccountListener l : al )
+		{
+			try
 			{
-				try
-				{
-					l.accountChanged (this, t);
-				}
-				catch ( Exception e )
-				{
-					log.error ("Uncaught exception in account listener", e);
-				}
+				l.accountChanged (this, t);
+			}
+			catch ( Exception e )
+			{
+				log.error ("Uncaught exception in account listener", e);
 			}
 		}
 	}
@@ -669,33 +645,35 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	@Override
-	public List<Transaction> getTransactions ()
+	public synchronized List<Transaction> getTransactions ()
 	{
 		List<Transaction> tl = new ArrayList<> ();
-		tl.addAll (transactions.values ());
-		Collections.sort (tl, new Comparator<Transaction> ()
+		for ( Transaction t : transactions.values () )
 		{
-			@Override
-			public int compare (Transaction a, Transaction b)
+			boolean inserted = false;
+			int ix = 0;
+			for ( Transaction other : tl )
 			{
-				for ( TransactionInput i : b.getInputs () )
+				for ( TransactionInput in : other.getInputs () )
 				{
-					if ( i.getSourceHash ().equals (a.getHash ()) )
+					if ( in.getSourceHash ().equals (t.getHash ()) )
 					{
-						return -1;
+						tl.add (ix, t);
+						inserted = true;
+						break;
 					}
 				}
-				for ( TransactionInput i : a.getInputs () )
+				++ix;
+				if ( inserted )
 				{
-					if ( i.getSourceHash ().equals (b.getHash ()) )
-					{
-						return 1;
-					}
+					break;
 				}
-				return 0;
 			}
-		});
-
+			if ( !inserted )
+			{
+				tl.add (t);
+			}
+		}
 		return tl;
 	}
 
