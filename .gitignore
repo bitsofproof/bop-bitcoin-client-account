@@ -1,2 +1,4 @@
 *.iml
 target
+.idea
+atlassian-ide-plugin.xml

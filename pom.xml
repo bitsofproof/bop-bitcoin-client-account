@@ -33,16 +33,7 @@
 			<email>bartfaitamas@gmail.com</email>
 		</contributor>
 	</contributors>
-	
-	<repositories>
-		<repository>
-			<id>bitsofproof</id>
-			<name>Bits of Proof Public Maven Repository</name>
-			<url>https://bitsofproof.com/maven</url>
-		</repository>
-	</repositories>
 
-	
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -51,15 +42,25 @@
 		<bop-bitcoin-client-api.version>3.4.0-SNAPSHOT</bop-bitcoin-client-api.version>
 	</properties>
 
-	<distributionManagement>
-		<downloadUrl>http://maven.bitsofproof.com/maven</downloadUrl>
+	<repositories>
 		<repository>
 			<id>bitsofproof</id>
-			<uniqueVersion>false</uniqueVersion>
-			<name>BOP Public Maven Repository</name>
-			<url>scp://maven@maven.bitsofproof.com/home/maven/repository</url>
-			<layout>default</layout>
+			<name>Bits of Proof Public Maven Repository</name>
+			<url>https://bitsofproof.com/maven</url>
 		</repository>
+	</repositories>
+
+	<distributionManagement>
+		<repository>
+			<id>bitsofproof</id>
+			<name>bop internal repository</name>
+			<url>https://bitsofproof.com/nexus/content/repositories/releases</url>
+		</repository>
+		<snapshotRepository>
+			<id>bitsofproof</id>
+			<name>bop internal repository</name>
+			<url>https://bitsofproof.com/nexus/content/repositories/snapshots</url>
+		</snapshotRepository>
 	</distributionManagement>
 
 	<scm>
