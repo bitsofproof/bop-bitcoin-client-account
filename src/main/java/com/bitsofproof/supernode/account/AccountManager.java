@@ -25,10 +25,11 @@ import com.bitsofproof.supernode.api.BCSAPIException;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
 import com.bitsofproof.supernode.api.TransactionOutput;
+import com.bitsofproof.supernode.api.TrunkListener;
 import com.bitsofproof.supernode.common.Key;
 import com.bitsofproof.supernode.common.ValidationException;
 
-public interface AccountManager extends TransactionListener
+public interface AccountManager extends TransactionListener, TrunkListener
 {
 	public interface UTXO
 	{
