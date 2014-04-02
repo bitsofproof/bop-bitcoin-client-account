@@ -15,6 +15,7 @@
  */
 package com.bitsofproof.supernode.account;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -24,6 +25,7 @@ import com.bitsofproof.supernode.api.BCSAPI;
 import com.bitsofproof.supernode.api.BCSAPIException;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
+import com.bitsofproof.supernode.api.TransactionOutput;
 import com.bitsofproof.supernode.common.ExtendedKey;
 import com.bitsofproof.supernode.common.Key;
 import com.bitsofproof.supernode.common.ValidationException;
@@ -153,6 +155,42 @@ public class ReceiverChangeAccountManager extends BaseAccountManager implements 
 	{
 		change.process (t);
 		receiver.process (t);
+	}
+
+	@Override
+	public synchronized Collection<TransactionOutput> getConfirmedOutputs ()
+	{
+		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
+		outs.addAll (receiver.getConfirmedOutputs ());
+		outs.addAll (change.getConfirmedOutputs ());
+		return outs;
+	}
+
+	@Override
+	public synchronized Collection<TransactionOutput> getSendingOutputs ()
+	{
+		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
+		outs.addAll (receiver.getSendingOutputs ());
+		outs.addAll (change.getSendingOutputs ());
+		return outs;
+	}
+
+	@Override
+	public synchronized Collection<TransactionOutput> getReceivingOutputs ()
+	{
+		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
+		outs.addAll (receiver.getReceivingOutputs ());
+		outs.addAll (change.getReceivingOutputs ());
+		return outs;
+	}
+
+	@Override
+	public synchronized Collection<TransactionOutput> getChangeOutputs ()
+	{
+		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
+		outs.addAll (receiver.getChangeOutputs ());
+		outs.addAll (change.getChangeOutputs ());
+		return outs;
 	}
 
 	@Override
