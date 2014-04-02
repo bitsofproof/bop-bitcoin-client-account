@@ -115,6 +115,21 @@ public class ReceiverChangeAccountManager extends BaseAccountManager implements 
 		return false;
 	}
 
+	public int[] getKeyPathForAddresss (Address address)
+	{
+		Integer rk = receiver.getKeyIDForAddress (address);
+		if ( rk != null )
+		{
+			return new int[] { 0, rk };
+		}
+		Integer ck = change.getKeyIDForAddress (address);
+		if ( ck != null )
+		{
+			return new int[] { 1, ck };
+		}
+		return null;
+	}
+
 	@Override
 	public Key getKeyForAddress (Address address)
 	{
