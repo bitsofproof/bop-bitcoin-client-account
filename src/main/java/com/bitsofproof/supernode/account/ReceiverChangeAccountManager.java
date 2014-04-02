@@ -194,6 +194,36 @@ public class ReceiverChangeAccountManager extends BaseAccountManager implements 
 	}
 
 	@Override
+	public synchronized long getBalance ()
+	{
+		return receiver.getBalance () + change.getBalance ();
+	}
+
+	@Override
+	public synchronized long getConfirmed ()
+	{
+		return receiver.getConfirmed () + change.getConfirmed ();
+	}
+
+	@Override
+	public synchronized long getSending ()
+	{
+		return receiver.getSending () + change.getSending ();
+	}
+
+	@Override
+	public synchronized long getReceiving ()
+	{
+		return receiver.getReceiving () + change.getReceiving ();
+	}
+
+	@Override
+	public synchronized long getChange ()
+	{
+		return receiver.getChange () + change.getChange ();
+	}
+
+	@Override
 	public void syncHistory (BCSAPI api) throws BCSAPIException
 	{
 		receiver.syncHistory (api);
