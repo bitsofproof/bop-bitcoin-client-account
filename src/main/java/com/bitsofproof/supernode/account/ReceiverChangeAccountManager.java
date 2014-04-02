@@ -30,15 +30,9 @@ import com.bitsofproof.supernode.common.ValidationException;
 
 public class ReceiverChangeAccountManager extends BaseAccountManager implements TransactionListener
 {
-	private ExtendedKeyAccountManager receiver;
-	private ExtendedKeyAccountManager change;
+	private final ExtendedKeyAccountManager receiver = new ExtendedKeyAccountManager ();
+	private final ExtendedKeyAccountManager change = new ExtendedKeyAccountManager ();
 	private ExtendedKey master;
-
-	public ReceiverChangeAccountManager ()
-	{
-		receiver = new ExtendedKeyAccountManager ();
-		change = new ExtendedKeyAccountManager ();
-	}
 
 	public ExtendedKey getMaster ()
 	{
