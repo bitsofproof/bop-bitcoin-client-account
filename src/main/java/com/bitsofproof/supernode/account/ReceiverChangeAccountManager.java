@@ -149,6 +149,13 @@ public class ReceiverChangeAccountManager extends BaseAccountManager implements 
 	}
 
 	@Override
+	public void process (Transaction t)
+	{
+		change.process (t);
+		receiver.process (t);
+	}
+
+	@Override
 	public void syncHistory (BCSAPI api) throws BCSAPIException
 	{
 		receiver.syncHistory (api);
