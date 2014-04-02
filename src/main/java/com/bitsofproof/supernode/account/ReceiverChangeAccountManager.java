@@ -34,6 +34,12 @@ public class ReceiverChangeAccountManager extends BaseAccountManager implements 
 	private ExtendedKeyAccountManager change;
 	private ExtendedKey master;
 
+	public ReceiverChangeAccountManager ()
+	{
+		receiver = new ExtendedKeyAccountManager ();
+		change = new ExtendedKeyAccountManager ();
+	}
+
 	public ExtendedKey getMaster ()
 	{
 		return master;
@@ -52,14 +58,12 @@ public class ReceiverChangeAccountManager extends BaseAccountManager implements 
 			}
 		};
 
-		receiver = new ExtendedKeyAccountManager ();
 		receiver.setFirstIndex (getFirstIndex ());
 		receiver.setLookAhead (getLookAhead ());
 		receiver.setCreated (getCreated ());
 		receiver.setMaster (master.getChild (0));
 		receiver.addAccountListener (listener);
 
-		change = new ExtendedKeyAccountManager ();
 		change.setFirstIndex (getFirstIndex ());
 		change.setLookAhead (getLookAhead ());
 		change.setCreated (getCreated ());
