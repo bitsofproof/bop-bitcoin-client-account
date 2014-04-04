@@ -15,20 +15,12 @@
  */
 package com.bitsofproof.supernode.account;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
-import com.bitsofproof.supernode.api.Address;
-import com.bitsofproof.supernode.api.BCSAPI;
-import com.bitsofproof.supernode.api.BCSAPIException;
-import com.bitsofproof.supernode.api.Transaction;
-import com.bitsofproof.supernode.api.TransactionListener;
-import com.bitsofproof.supernode.api.TransactionOutput;
+import com.bitsofproof.supernode.api.*;
 import com.bitsofproof.supernode.common.ExtendedKey;
 import com.bitsofproof.supernode.common.Key;
 import com.bitsofproof.supernode.common.ValidationException;
+
+import java.util.*;
 
 public class ReceiverChangeAccountManager extends BaseAccountManager implements TransactionListener
 {
@@ -221,6 +213,16 @@ public class ReceiverChangeAccountManager extends BaseAccountManager implements 
 	public synchronized long getChange ()
 	{
 		return receiver.getChange () + change.getChange ();
+	}
+
+	@Override
+	public synchronized List<Transaction> getTransactions ()
+	{
+		List<Transaction> txs = new ArrayList<>();
+		txs.addAll(receiver.getTransactions ());
+		txs.addAll(change.getTransactions ());
+
+		return txs;
 	}
 
 	@Override
