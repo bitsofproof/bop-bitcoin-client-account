@@ -27,6 +27,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.bitsofproof.supernode.api.Block;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionInput;
 import com.bitsofproof.supernode.api.TransactionOutput;
@@ -87,7 +88,7 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	@Override
-	public synchronized void trunkUpdate (List<String> added)
+	public synchronized void trunkUpdate (List<Block> added)
 	{
 	}
 
