@@ -56,7 +56,7 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	private final Set<AccountListener> accountListener = Collections.synchronizedSet (new HashSet<AccountListener> ());
-	private final Map<String, Transaction> transactions = new HashMap<> ();
+	private final Set<Transaction> transactions = new HashSet<> ();
 
 	protected UTXO createConfirmedUTXO ()
 	{
@@ -168,7 +168,7 @@ public abstract class BaseAccountManager implements AccountManager
 			}
 			if ( modified )
 			{
-				transactions.put (t.getHash (), t);
+				transactions.add (t);
 			}
 		}
 		else
@@ -204,7 +204,7 @@ public abstract class BaseAccountManager implements AccountManager
 				}
 				modified |= out != null;
 			}
-			transactions.remove (t.getHash ());
+			transactions.remove (t);
 		}
 		return modified;
 	}
@@ -305,35 +305,8 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	@Override
-	public synchronized List<Transaction> getTransactions ()
+	public synchronized Set<Transaction> getTransactions ()
 	{
-		List<Transaction> tl = new ArrayList<> ();
-		for ( Transaction t : transactions.values () )
-		{
-			boolean inserted = false;
-			int ix = 0;
-			for ( Transaction other : tl )
-			{
-				for ( TransactionInput in : other.getInputs () )
-				{
-					if ( in.getSourceHash ().equals (t.getHash ()) )
-					{
-						tl.add (ix, t);
-						inserted = true;
-						break;
-					}
-				}
-				++ix;
-				if ( inserted )
-				{
-					break;
-				}
-			}
-			if ( !inserted )
-			{
-				tl.add (t);
-			}
-		}
-		return tl;
+		return Collections.unmodifiableSet (transactions);
 	}
 }

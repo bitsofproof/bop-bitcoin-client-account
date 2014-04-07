@@ -16,7 +16,6 @@
 package com.bitsofproof.supernode.account;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
 
 import com.bitsofproof.supernode.api.Address;
@@ -72,7 +71,7 @@ public interface AccountManager extends TransactionListener, TrunkListener
 
 	public Collection<TransactionOutput> getChangeOutputs ();
 
-	public List<Transaction> getTransactions ();
+	public Set<Transaction> getTransactions ();
 
 	public void addAccountListener (AccountListener listener);
 

@@ -15,11 +15,9 @@
  */
 package com.bitsofproof.supernode.account;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import com.bitsofproof.supernode.api.Address;
@@ -219,12 +217,11 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public synchronized List<Transaction> getTransactions ()
+	public synchronized Set<Transaction> getTransactions ()
 	{
-		List<Transaction> txs = new ArrayList<> ();
+		Set<Transaction> txs = new HashSet<> ();
 		txs.addAll (receiver.getTransactions ());
 		txs.addAll (change.getTransactions ());
-
 		return txs;
 	}
 
