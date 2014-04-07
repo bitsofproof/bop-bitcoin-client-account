@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.bitsofproof.supernode.api.Address;
-import com.bitsofproof.supernode.api.Block;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionInput;
 import com.bitsofproof.supernode.api.TransactionOutput;
@@ -41,7 +40,6 @@ import com.bitsofproof.supernode.common.BloomFilter;
 import com.bitsofproof.supernode.common.BloomFilter.UpdateMode;
 import com.bitsofproof.supernode.common.ByteUtils;
 import com.bitsofproof.supernode.common.ECKeyPair;
-import com.bitsofproof.supernode.common.Hash;
 import com.bitsofproof.supernode.common.Key;
 import com.bitsofproof.supernode.common.ScriptFormat;
 import com.bitsofproof.supernode.common.ValidationException;
@@ -107,29 +105,8 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	@Override
-	public synchronized void trunkUpdate (List<Block> removed, List<Block> added)
+	public synchronized void trunkUpdate (List<String> added)
 	{
-		for ( Block b : removed )
-		{
-			for ( Transaction t : b.getTransactions () )
-			{
-				confirmations.remove (t.getHash ());
-			}
-		}
-		for ( Block b : added )
-		{
-			for ( Transaction t : b.getTransactions () )
-			{
-				if ( confirmationsFilter.contains (new Hash (t.getHash ()).toByteArray ()) )
-				{
-					confirmations.put (t.getHash (), 0);
-				}
-			}
-			for ( String h : confirmations.keySet () )
-			{
-				confirmations.put (h, confirmations.get (h) + 1);
-			}
-		}
 	}
 
 	public boolean isOwnAddress (Address address)
