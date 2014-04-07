@@ -26,8 +26,6 @@ import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
 import com.bitsofproof.supernode.api.TransactionOutput;
 import com.bitsofproof.supernode.api.TrunkListener;
-import com.bitsofproof.supernode.common.Key;
-import com.bitsofproof.supernode.common.ValidationException;
 
 public interface AccountManager extends TransactionListener, TrunkListener
 {
@@ -52,21 +50,9 @@ public interface AccountManager extends TransactionListener, TrunkListener
 
 	public long getCreated ();
 
-	public Key getNextKey () throws ValidationException;
-
-	public Address getNextAddress () throws ValidationException;
-
-	public Key getKeyForAddress (Address address);
+	public boolean isOwnAddress (Address address);
 
 	public Set<Address> getAddresses ();
-
-	public Transaction pay (Address receiver, long amount, long fee, boolean senderPaysFee) throws ValidationException;
-
-	public Transaction pay (Address receiver, long amount, boolean senderPaysFee) throws ValidationException;
-
-	public Transaction pay (List<Address> receiver, List<Long> amount, long fee, boolean senderPaysFee) throws ValidationException;
-
-	public Transaction pay (List<Address> receiver, List<Long> amounts, boolean senderPaysFee) throws ValidationException;
 
 	public long getBalance ();
 

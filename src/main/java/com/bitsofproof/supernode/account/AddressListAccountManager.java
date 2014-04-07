@@ -28,8 +28,6 @@ import com.bitsofproof.supernode.api.BCSAPIException;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
 import com.bitsofproof.supernode.common.BloomFilter.UpdateMode;
-import com.bitsofproof.supernode.common.Key;
-import com.bitsofproof.supernode.common.ValidationException;
 
 public class AddressListAccountManager extends BaseAccountManager
 {
@@ -44,21 +42,9 @@ public class AddressListAccountManager extends BaseAccountManager
 	}
 
 	@Override
-	public Key getKeyForAddress (Address address)
-	{
-		return null;
-	}
-
-	@Override
 	public boolean isOwnAddress (Address address)
 	{
 		return addresses.contains (address);
-	}
-
-	@Override
-	public Key getNextKey () throws ValidationException
-	{
-		return null;
 	}
 
 	public void addAddress (Address address)

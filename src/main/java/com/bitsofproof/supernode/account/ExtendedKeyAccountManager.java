@@ -34,7 +34,7 @@ import com.bitsofproof.supernode.common.ExtendedKey;
 import com.bitsofproof.supernode.common.Key;
 import com.bitsofproof.supernode.common.ValidationException;
 
-public class ExtendedKeyAccountManager extends BaseAccountManager implements TransactionListener
+public class ExtendedKeyAccountManager extends BaseTransactionFactory
 {
 	private static final Logger log = LoggerFactory.getLogger (ExtendedKeyAccountManager.class);
 
@@ -117,7 +117,6 @@ public class ExtendedKeyAccountManager extends BaseAccountManager implements Tra
 		ensureLookAhead (nextSequence);
 	}
 
-	@Override
 	public Key getNextKey () throws ValidationException
 	{
 		return getKey (nextSequence++);
@@ -138,7 +137,6 @@ public class ExtendedKeyAccountManager extends BaseAccountManager implements Tra
 		return id;
 	}
 
-	@Override
 	public Key getKeyForAddress (Address address)
 	{
 		Integer keyId = getKeyIDForAddress (address);
@@ -199,5 +197,23 @@ public class ExtendedKeyAccountManager extends BaseAccountManager implements Tra
 	public void sync (BCSAPI api) throws BCSAPIException
 	{
 		throw new BCSAPIException ("not implemented");
+	}
+
+	@Override
+	public Address getNextChangeAddress () throws ValidationException
+	{
+		return getNextKey ().getAddress ();
+	}
+
+	@Override
+	public Address getNextReceiverAddress () throws ValidationException
+	{
+		return getNextKey ().getAddress ();
+	}
+
+	@Override
+	public boolean isOwnAddress (Address address)
+	{
+		return keyIDForAddress.containsKey (address);
 	}
 }

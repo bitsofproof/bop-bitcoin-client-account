@@ -36,7 +36,7 @@ import com.bitsofproof.supernode.common.ECKeyPair;
 import com.bitsofproof.supernode.common.Key;
 import com.bitsofproof.supernode.common.ValidationException;
 
-public class KeyListAccountManager extends BaseAccountManager
+public class KeyListAccountManager extends BaseTransactionFactory
 {
 	private static final Logger log = LoggerFactory.getLogger (KeyListAccountManager.class);
 
@@ -50,13 +50,11 @@ public class KeyListAccountManager extends BaseAccountManager
 		return Collections.unmodifiableSet (keyByAddress.keySet ());
 	}
 
-	@Override
 	public Key getKeyForAddress (Address address)
 	{
 		return keyByAddress.get (address);
 	}
 
-	@Override
 	public Key getNextKey () throws ValidationException
 	{
 		return keys.get (rnd.nextInt (keys.size ()));
@@ -98,5 +96,23 @@ public class KeyListAccountManager extends BaseAccountManager
 			}
 		});
 		log.trace ("Sync finished naddr: " + keys.size ());
+	}
+
+	@Override
+	public Address getNextChangeAddress () throws ValidationException
+	{
+		return getNextKey ().getAddress ();
+	}
+
+	@Override
+	public Address getNextReceiverAddress () throws ValidationException
+	{
+		return getNextKey ().getAddress ();
+	}
+
+	@Override
+	public boolean isOwnAddress (Address address)
+	{
+		return keyByAddress.containsKey (address);
 	}
 }

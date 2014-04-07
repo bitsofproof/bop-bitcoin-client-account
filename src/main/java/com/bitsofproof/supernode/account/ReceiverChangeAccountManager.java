@@ -15,14 +15,23 @@
  */
 package com.bitsofproof.supernode.account;
 
-import com.bitsofproof.supernode.api.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import com.bitsofproof.supernode.api.Address;
+import com.bitsofproof.supernode.api.BCSAPI;
+import com.bitsofproof.supernode.api.BCSAPIException;
+import com.bitsofproof.supernode.api.Transaction;
+import com.bitsofproof.supernode.api.TransactionOutput;
 import com.bitsofproof.supernode.common.ExtendedKey;
 import com.bitsofproof.supernode.common.Key;
 import com.bitsofproof.supernode.common.ValidationException;
 
-import java.util.*;
-
-public class ReceiverChangeAccountManager extends BaseAccountManager implements TransactionListener
+public class ReceiverChangeAccountManager extends BaseTransactionFactory
 {
 	private final ExtendedKeyAccountManager receiver = new ExtendedKeyAccountManager ();
 	private final ExtendedKeyAccountManager change = new ExtendedKeyAccountManager ();
@@ -79,12 +88,6 @@ public class ReceiverChangeAccountManager extends BaseAccountManager implements 
 	public int getLookAhead ()
 	{
 		return receiver.getLookAhead ();
-	}
-
-	@Override
-	public Key getNextKey () throws ValidationException
-	{
-		return change.getNextKey ();
 	}
 
 	public boolean isReceiverAddress (Address address)
@@ -218,9 +221,9 @@ public class ReceiverChangeAccountManager extends BaseAccountManager implements 
 	@Override
 	public synchronized List<Transaction> getTransactions ()
 	{
-		List<Transaction> txs = new ArrayList<>();
-		txs.addAll(receiver.getTransactions ());
-		txs.addAll(change.getTransactions ());
+		List<Transaction> txs = new ArrayList<> ();
+		txs.addAll (receiver.getTransactions ());
+		txs.addAll (change.getTransactions ());
 
 		return txs;
 	}
@@ -236,5 +239,23 @@ public class ReceiverChangeAccountManager extends BaseAccountManager implements 
 	public void sync (BCSAPI api) throws BCSAPIException
 	{
 		throw new BCSAPIException ("not implemented");
+	}
+
+	@Override
+	public boolean isOwnAddress (Address address)
+	{
+		return change.isOwnAddress (address) || receiver.isOwnAddress (address);
+	}
+
+	@Override
+	public Address getNextChangeAddress () throws ValidationException
+	{
+		return change.getNextChangeAddress ();
+	}
+
+	@Override
+	public Address getNextReceiverAddress () throws ValidationException
+	{
+		return receiver.getNextReceiverAddress ();
 	}
 }
