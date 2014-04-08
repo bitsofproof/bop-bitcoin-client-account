@@ -33,6 +33,7 @@ import com.bitsofproof.supernode.api.Block;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionInput;
 import com.bitsofproof.supernode.api.TransactionOutput;
+import com.bitsofproof.supernode.common.Hash;
 
 public abstract class BaseAccountManager implements AccountManager
 {
@@ -96,13 +97,16 @@ public abstract class BaseAccountManager implements AccountManager
 		transactions.add (t);
 		for ( TransactionInput i : t.getInputs () )
 		{
-			Set<Transaction> twithi = inputs.get (i.getSourceHash ());
-			if ( twithi == null )
+			if ( !i.getSourceHash ().equals (Hash.ZERO_HASH_STRING) )
 			{
-				twithi = new HashSet<Transaction> ();
-				inputs.put (i.getSourceHash (), twithi);
+				Set<Transaction> twithi = inputs.get (i.getSourceHash ());
+				if ( twithi == null )
+				{
+					twithi = new HashSet<Transaction> ();
+					inputs.put (i.getSourceHash (), twithi);
+				}
+				twithi.add (t);
 			}
-			twithi.add (t);
 		}
 	}
 
