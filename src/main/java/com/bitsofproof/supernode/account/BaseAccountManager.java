@@ -119,13 +119,12 @@ public abstract class BaseAccountManager implements AccountManager
 		}
 	}
 
-	public synchronized List<Transaction> updateWithTransaction (Transaction t)
+	private void updateWithTransaction (Transaction t, List<Transaction> notifyTransactionListener, List<Transaction> notifyConfirmationListener)
 	{
 		boolean modified = false;
-		List<Transaction> notifyList = new ArrayList<> ();
 		if ( !t.isExpired () )
 		{
-			modified = updateWithRegularTransaction (t, notifyList);
+			modified = updateWithRegularTransaction (t, notifyTransactionListener, notifyConfirmationListener);
 		}
 		else
 		{
@@ -133,8 +132,14 @@ public abstract class BaseAccountManager implements AccountManager
 		}
 		if ( modified )
 		{
-			notifyList.add (t);
+			notifyTransactionListener.add (t);
 		}
+	}
+
+	public synchronized List<Transaction> updateWithTransaction (Transaction t)
+	{
+		List<Transaction> notifyList = new ArrayList<> ();
+		updateWithTransaction (t, notifyList, new ArrayList<Transaction> ());
 		return notifyList;
 	}
 
@@ -151,10 +156,10 @@ public abstract class BaseAccountManager implements AccountManager
 		return modified;
 	}
 
-	private boolean updateWithRegularTransaction (Transaction t, List<Transaction> notifyList)
+	private boolean updateWithRegularTransaction (Transaction t, List<Transaction> notifyTransactionListener, List<Transaction> notifyConfirmationListener)
 	{
-		boolean spending = processInputs (t, notifyList);
-		boolean modified = processOutputs (t, spending);
+		boolean spending = processInputs (t, notifyTransactionListener);
+		boolean modified = processOutputs (t, spending, notifyConfirmationListener);
 		if ( modified )
 		{
 			cacheTransaction (t);
@@ -162,7 +167,7 @@ public abstract class BaseAccountManager implements AccountManager
 		return modified;
 	}
 
-	private boolean processOutputs (Transaction t, boolean spending)
+	private boolean processOutputs (Transaction t, boolean spending, List<Transaction> notifyConfirmationListener)
 	{
 		boolean modified;
 		modified = spending;
@@ -184,7 +189,7 @@ public abstract class BaseAccountManager implements AccountManager
 						confirmations.put (t.getBlockHash (), confirmed);
 					}
 					confirmed.add (t);
-
+					notifyConfirmationListener.add (t);
 					log.trace ("Confirmed " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") " + o.getValue ());
 				}
 				else
@@ -410,22 +415,28 @@ public abstract class BaseAccountManager implements AccountManager
 		{
 			Block first = added.get (0);
 
-			if ( !trunk.isEmpty () && !trunk.getLast ().equals (first.getPreviousHash ()) && trunk.contains (first.getPreviousHash ()) )
+			if ( !trunk.isEmpty () && !trunk.getLast ().equals (first.getPreviousHash ()) )
 			{
-				do
+				if ( trunk.contains (first.getPreviousHash ()) )
 				{
-					String removed = trunk.removeLast ();
-					if ( confirmations.containsKey (removed) )
+					do
 					{
-						for ( Transaction t : confirmations.get (removed) )
+						String removed = trunk.removeLast ();
+						if ( confirmations.containsKey (removed) )
 						{
-							t.setBlockHash (null);
-							t.setBlocktime (new Date ().getTime () / 1000);
-							t.setHeight (0);
+							for ( Transaction t : confirmations.get (removed) )
+							{
+								t.setBlockHash (null);
+								t.setBlocktime (new Date ().getTime () / 1000);
+								t.setHeight (0);
+							}
+							reorgedTransactions.addAll (confirmations.remove (removed));
 						}
-						reorgedTransactions.addAll (confirmations.remove (removed));
-					}
-				} while ( !first.getPreviousHash ().equals (trunk.getLast ()) );
+					} while ( !first.getPreviousHash ().equals (trunk.getLast ()) );
+				}
+				else
+				{
+				}
 			}
 			for ( Block b : added )
 			{
@@ -435,9 +446,11 @@ public abstract class BaseAccountManager implements AccountManager
 					t.setBlockHash (b.getHash ());
 					t.setHeight (b.getHeight ());
 					t.setBlocktime (b.getCreateTime ());
-					List<Transaction> newOrReplaced = updateWithTransaction (t);
-					addedOrReorged.addAll (newOrReplaced);
-					reorgedTransactions.removeAll (newOrReplaced);
+					List<Transaction> notifyTransactionListener = new ArrayList<Transaction> ();
+					List<Transaction> notifyConfirmationListener = new ArrayList<Transaction> ();
+					updateWithTransaction (t, notifyTransactionListener, notifyConfirmationListener);
+					addedOrReorged.addAll (notifyTransactionListener);
+					reorgedTransactions.removeAll (notifyTransactionListener);
 				}
 				height = b.getHeight ();
 			}
