@@ -171,26 +171,23 @@ public abstract class BaseAccountManager implements AccountManager
 		TransactionOutput spend = null;
 		for ( TransactionInput input : t.getInputs () )
 		{
-			spend = confirmed.get (input.getSourceHash (), input.getIx ());
+			spend = confirmed.remove (input.getSourceHash (), input.getIx ());
 			if ( spend != null )
 			{
-				confirmed.remove (input.getSourceHash (), input.getIx ());
 				log.trace ("Spend settled output " + input.getSourceHash () + " [" + input.getIx () + "] " + spend.getValue ());
 			}
 			else
 			{
-				spend = change.get (input.getSourceHash (), input.getIx ());
+				spend = change.remove (input.getSourceHash (), input.getIx ());
 				if ( spend != null )
 				{
-					change.remove (input.getSourceHash (), input.getIx ());
 					log.trace ("Spend change output " + input.getSourceHash () + " [" + input.getIx () + "] " + spend.getValue ());
 				}
 				else
 				{
-					spend = receiving.get (input.getSourceHash (), input.getIx ());
+					spend = receiving.remove (input.getSourceHash (), input.getIx ());
 					if ( spend != null )
 					{
-						receiving.remove (input.getSourceHash (), input.getIx ());
 						log.trace ("Spend receiving output " + input.getSourceHash () + " [" + input.getIx () + "] " + spend.getValue ());
 					}
 				}
