@@ -53,9 +53,9 @@ public class InMemoryUTXO implements AccountManager.UTXO
 	private final Map<TxOutKey, TransactionOutput> utxo = new HashMap<TxOutKey, TransactionOutput> ();
 
 	@Override
-	public void add (TransactionOutput out)
+	public boolean add (TransactionOutput out)
 	{
-		utxo.put (new TxOutKey (out.getTxHash (), out.getIx ()), out);
+		return utxo.put (new TxOutKey (out.getTxHash (), out.getIx ()), out) == null;
 	}
 
 	@Override

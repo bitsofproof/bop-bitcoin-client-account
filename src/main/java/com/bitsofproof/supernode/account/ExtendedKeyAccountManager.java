@@ -42,7 +42,7 @@ public class ExtendedKeyAccountManager extends BaseTransactionFactory
 	private final Map<Address, Integer> keyIDForAddress = new HashMap<Address, Integer> ();
 	private ExtendedKey master;
 	private int nextSequence;
-	private int lookAhead = 100;
+	private int lookAhead = 10;
 	private int firstIndex;
 
 	public ExtendedKey getMaster ()

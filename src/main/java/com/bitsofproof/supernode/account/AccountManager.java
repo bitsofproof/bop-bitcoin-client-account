@@ -30,7 +30,7 @@ public interface AccountManager extends TransactionListener
 	public interface UTXO
 	{
 
-		public void add (TransactionOutput out);
+		public boolean add (TransactionOutput out);
 
 		public Collection<TransactionOutput> getUTXO ();
 

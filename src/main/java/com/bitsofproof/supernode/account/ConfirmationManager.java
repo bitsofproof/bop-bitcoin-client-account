@@ -106,6 +106,7 @@ public class ConfirmationManager implements TrunkListener
 					{
 						cacheTransaction (t);
 					}
+					notifyListener (t);
 				}
 			}
 			height = b.getHeight ();

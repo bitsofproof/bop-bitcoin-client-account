@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -84,23 +83,18 @@ public abstract class BaseAccountManager implements AccountManager
 
 	public synchronized boolean updateWithTransaction (Transaction t)
 	{
-		List<Transaction> notifyList = new ArrayList<> ();
 		boolean modified = false;
 		if ( t.getOffendingTx () != null )
 		{
 			modified = updateWithDoubleSpent (t);
 		}
-		else if ( !t.isExpired () )
+		else if ( t.isExpired () )
 		{
 			modified = updateWithExpiredTransaction (t);
 		}
 		else
 		{
 			modified = updateWithRegularTransaction (t);
-		}
-		if ( modified )
-		{
-			notifyList.add (t);
 		}
 		return modified;
 	}
@@ -141,21 +135,20 @@ public abstract class BaseAccountManager implements AccountManager
 			{
 				if ( t.getBlockHash () != null )
 				{
-					confirmed.add (o);
+					modified = confirmed.add (o);
 					log.trace ("Confirmed " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") " + o.getValue ());
 				}
 				else
 				{
-					modified = true;
 					if ( spending )
 					{
-						change.add (o);
+						modified = change.add (o);
 						log.trace ("Change " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") "
 								+ o.getValue ());
 					}
 					else
 					{
-						receiving.add (o);
+						modified = receiving.add (o);
 						log.trace ("Receiving " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") "
 								+ o.getValue ());
 					}
@@ -165,8 +158,7 @@ public abstract class BaseAccountManager implements AccountManager
 			{
 				if ( t.getBlockHash () == null && spending )
 				{
-					modified = true;
-					sending.add (o);
+					modified = sending.add (o);
 					log.trace ("Sending " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") " + o.getValue ());
 				}
 			}
