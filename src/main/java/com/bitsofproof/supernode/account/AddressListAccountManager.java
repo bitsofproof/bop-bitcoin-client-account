@@ -60,9 +60,9 @@ public class AddressListAccountManager extends BaseAccountManager
 		api.scanTransactionsForAddresses (getAddresses (), UpdateMode.all, getCreated (), new TransactionListener ()
 		{
 			@Override
-			public void process (Transaction t)
+			public boolean process (Transaction t)
 			{
-				updateWithTransaction (t);
+				return updateWithTransaction (t);
 			}
 		});
 		log.trace ("Sync finished naddr: " + addresses.size ());
@@ -76,9 +76,9 @@ public class AddressListAccountManager extends BaseAccountManager
 		api.scanUTXOForAddresses (getAddresses (), UpdateMode.all, getCreated (), new TransactionListener ()
 		{
 			@Override
-			public void process (Transaction t)
+			public boolean process (Transaction t)
 			{
-				updateWithTransaction (t);
+				return updateWithTransaction (t);
 			}
 		});
 		log.trace ("Sync finished naddr: " + addresses.size ());

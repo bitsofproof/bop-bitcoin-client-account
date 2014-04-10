@@ -144,10 +144,11 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public void process (Transaction t)
+	public boolean process (Transaction t)
 	{
-		change.process (t);
-		receiver.process (t);
+		boolean notified = change.process (t);
+		notified |= receiver.process (t);
+		return notified;
 	}
 
 	@Override

@@ -24,9 +24,8 @@ import com.bitsofproof.supernode.api.BCSAPIException;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
 import com.bitsofproof.supernode.api.TransactionOutput;
-import com.bitsofproof.supernode.api.TrunkListener;
 
-public interface AccountManager extends TransactionListener, TrunkListener
+public interface AccountManager extends TransactionListener
 {
 	public interface UTXO
 	{
@@ -72,6 +71,8 @@ public interface AccountManager extends TransactionListener, TrunkListener
 	public Collection<TransactionOutput> getChangeOutputs ();
 
 	public Set<Transaction> getTransactions ();
+
+	public boolean isKnownTransaction (Transaction t);
 
 	public void addAccountListener (AccountListener listener);
 

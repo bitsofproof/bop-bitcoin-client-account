@@ -50,6 +50,7 @@ public class KeyListAccountManager extends BaseTransactionFactory
 		return Collections.unmodifiableSet (keyByAddress.keySet ());
 	}
 
+	@Override
 	public Key getKeyForAddress (Address address)
 	{
 		return keyByAddress.get (address);
@@ -74,9 +75,9 @@ public class KeyListAccountManager extends BaseTransactionFactory
 		api.scanTransactionsForAddresses (getAddresses (), UpdateMode.all, getCreated (), new TransactionListener ()
 		{
 			@Override
-			public void process (Transaction t)
+			public boolean process (Transaction t)
 			{
-				updateWithTransaction (t);
+				return updateWithTransaction (t);
 			}
 		});
 		log.trace ("Sync finished naddr: " + keys.size ());
@@ -90,9 +91,9 @@ public class KeyListAccountManager extends BaseTransactionFactory
 		api.scanUTXOForAddresses (getAddresses (), UpdateMode.all, getCreated (), new TransactionListener ()
 		{
 			@Override
-			public void process (Transaction t)
+			public boolean process (Transaction t)
 			{
-				updateWithTransaction (t);
+				return updateWithTransaction (t);
 			}
 		});
 		log.trace ("Sync finished naddr: " + keys.size ());

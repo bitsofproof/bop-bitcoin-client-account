@@ -18,22 +18,16 @@ package com.bitsofproof.supernode.account;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.bitsofproof.supernode.api.Block;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionInput;
 import com.bitsofproof.supernode.api.TransactionOutput;
-import com.bitsofproof.supernode.common.Hash;
 
 public abstract class BaseAccountManager implements AccountManager
 {
@@ -46,12 +40,8 @@ public abstract class BaseAccountManager implements AccountManager
 
 	private final Set<AccountListener> accountListener = Collections.synchronizedSet (new HashSet<AccountListener> ());
 	private final Set<Transaction> transactions = new HashSet<> ();
-	private final Map<String, Set<Transaction>> confirmations = new HashMap<> ();
-	private final Map<String, Set<Transaction>> inputs = new HashMap<> ();
-	private final LinkedList<String> trunk = new LinkedList<> ();
 
 	private long created;
-	private int height = 0;
 
 	@Override
 	public long getCreated ()
@@ -92,82 +82,54 @@ public abstract class BaseAccountManager implements AccountManager
 		sending = createSendingUTXO ();
 	}
 
-	private void cacheTransaction (Transaction t)
+	public synchronized boolean updateWithTransaction (Transaction t)
 	{
-		transactions.add (t);
-		for ( TransactionInput i : t.getInputs () )
-		{
-			if ( !i.getSourceHash ().equals (Hash.ZERO_HASH_STRING) )
-			{
-				Set<Transaction> twithi = inputs.get (i.getSourceHash ());
-				if ( twithi == null )
-				{
-					twithi = new HashSet<Transaction> ();
-					inputs.put (i.getSourceHash (), twithi);
-				}
-				twithi.add (t);
-			}
-		}
-	}
-
-	private void forgetTransaction (Transaction t)
-	{
-		transactions.remove (t);
-		for ( TransactionInput i : t.getInputs () )
-		{
-			inputs.remove (i.getSourceHash ());
-		}
-	}
-
-	private void updateWithTransaction (Transaction t, List<Transaction> notifyTransactionListener, List<Transaction> notifyConfirmationListener)
-	{
+		List<Transaction> notifyList = new ArrayList<> ();
 		boolean modified = false;
-		if ( !t.isExpired () )
+		if ( t.getOffendingTx () != null )
 		{
-			modified = updateWithRegularTransaction (t, notifyTransactionListener, notifyConfirmationListener);
+			modified = updateWithDoubleSpent (t);
+		}
+		else if ( !t.isExpired () )
+		{
+			modified = updateWithExpiredTransaction (t);
 		}
 		else
 		{
-			modified = updateWithExpiredTransaction (t, modified);
+			modified = updateWithRegularTransaction (t);
 		}
 		if ( modified )
 		{
-			notifyTransactionListener.add (t);
+			notifyList.add (t);
 		}
+		return modified;
 	}
 
-	public synchronized List<Transaction> updateWithTransaction (Transaction t)
+	private boolean updateWithDoubleSpent (Transaction t)
 	{
-		List<Transaction> notifyList = new ArrayList<> ();
-		updateWithTransaction (t, notifyList, new ArrayList<Transaction> ());
-		return notifyList;
+		removeOutput (t);
+		return transactions.remove (t);
 	}
 
-	private boolean updateWithExpiredTransaction (Transaction t, boolean modified)
+	private boolean updateWithExpiredTransaction (Transaction t)
 	{
 		log.trace ("Remove expired " + t.getHash ());
-		for ( long ix = 0; ix < t.getOutputs ().size (); ++ix )
-		{
-			TransactionOutput out;
-			out = removeOutput (t.getHash (), ix);
-			modified |= out != null;
-		}
-		forgetTransaction (t);
-		return modified;
+		removeOutput (t);
+		return transactions.remove (t);
 	}
 
-	private boolean updateWithRegularTransaction (Transaction t, List<Transaction> notifyTransactionListener, List<Transaction> notifyConfirmationListener)
+	private boolean updateWithRegularTransaction (Transaction t)
 	{
-		boolean spending = processInputs (t, notifyTransactionListener);
-		boolean modified = processOutputs (t, spending, notifyConfirmationListener);
+		boolean spending = processInputs (t);
+		boolean modified = processOutputs (t, spending);
 		if ( modified )
 		{
-			cacheTransaction (t);
+			transactions.add (t);
 		}
 		return modified;
 	}
 
-	private boolean processOutputs (Transaction t, boolean spending, List<Transaction> notifyConfirmationListener)
+	private boolean processOutputs (Transaction t, boolean spending)
 	{
 		boolean modified;
 		modified = spending;
@@ -177,23 +139,14 @@ public abstract class BaseAccountManager implements AccountManager
 
 			if ( isOwnAddress (o.getOutputAddress ()) )
 			{
-				modified = true;
 				if ( t.getBlockHash () != null )
 				{
 					confirmed.add (o);
-
-					Set<Transaction> confirmed;
-					if ( (confirmed = confirmations.get (t.getBlockHash ())) == null )
-					{
-						confirmed = new HashSet<Transaction> ();
-						confirmations.put (t.getBlockHash (), confirmed);
-					}
-					confirmed.add (t);
-					notifyConfirmationListener.add (t);
 					log.trace ("Confirmed " + t.getHash () + " [" + o.getIx () + "] (" + o.getOutputAddress () + ") " + o.getValue ());
 				}
 				else
 				{
+					modified = true;
 					if ( spending )
 					{
 						change.add (o);
@@ -221,12 +174,11 @@ public abstract class BaseAccountManager implements AccountManager
 		return modified;
 	}
 
-	private boolean processInputs (Transaction t, List<Transaction> notifyList)
+	private boolean processInputs (Transaction t)
 	{
 		TransactionOutput spend = null;
 		for ( TransactionInput input : t.getInputs () )
 		{
-			checkDoubleSpend (t, notifyList, input);
 			spend = confirmed.get (input.getSourceHash (), input.getIx ());
 			if ( spend != null )
 			{
@@ -255,35 +207,11 @@ public abstract class BaseAccountManager implements AccountManager
 		return spend != null;
 	}
 
-	private void checkDoubleSpend (Transaction t, List<Transaction> notifyList, TransactionInput input)
+	private void removeOutput (Transaction t)
 	{
-		if ( inputs.containsKey (input.getSourceHash ()) )
+		for ( TransactionOutput o : t.getOutputs () )
 		{
-			List<Transaction> forgetList = new ArrayList<> ();
-			for ( Transaction prev : inputs.get (input.getSourceHash ()) )
-			{
-				for ( TransactionInput pi : prev.getInputs () )
-				{
-					if ( pi.getSourceHash ().equals (input.getSourceHash ()) && pi.getIx () == input.getIx () )
-					{
-						log.trace ("Double spend " + t.getHash () + " replaces " + prev.getHash ());
-						prev.setHeight (0);
-						prev.setBlockHash (null);
-						prev.setOffendingTx (t.getHash ());
-						notifyList.add (prev);
-						for ( TransactionOutput o : prev.getOutputs () )
-						{
-							removeOutput (prev.getHash (), o.getIx ());
-						}
-						forgetList.add (prev);
-						break;
-					}
-				}
-			}
-			for ( Transaction f : forgetList )
-			{
-				forgetTransaction (f);
-			}
+			removeOutput (o.getTxHash (), o.getIx ());
 		}
 	}
 
@@ -397,77 +325,20 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	@Override
-	public void process (Transaction t)
+	public boolean process (Transaction t)
 	{
-		for ( Transaction n : updateWithTransaction (t) )
+		if ( updateWithTransaction (t) )
 		{
-			notifyListener (n);
+			notifyListener (t);
+			return true;
 		}
+		return false;
 	}
 
 	@Override
-	public void trunkUpdate (List<Block> added)
+	public synchronized boolean isKnownTransaction (Transaction t)
 	{
-		Set<Transaction> reorgedTransactions = new HashSet<> ();
-		List<Transaction> addedOrReorged = new ArrayList<> ();
-
-		synchronized ( this )
-		{
-			Block first = added.get (0);
-
-			if ( !trunk.isEmpty () && !trunk.getLast ().equals (first.getPreviousHash ()) )
-			{
-				if ( trunk.contains (first.getPreviousHash ()) )
-				{
-					do
-					{
-						String removed = trunk.removeLast ();
-						if ( confirmations.containsKey (removed) )
-						{
-							for ( Transaction t : confirmations.get (removed) )
-							{
-								t.setBlockHash (null);
-								t.setBlocktime (new Date ().getTime () / 1000);
-								t.setHeight (0);
-							}
-							reorgedTransactions.addAll (confirmations.remove (removed));
-						}
-					} while ( !first.getPreviousHash ().equals (trunk.getLast ()) );
-				}
-				else
-				{
-				}
-			}
-			for ( Block b : added )
-			{
-				trunk.addLast (b.getHash ());
-				for ( Transaction t : b.getTransactions () )
-				{
-					t.setBlockHash (b.getHash ());
-					t.setHeight (b.getHeight ());
-					t.setBlocktime (b.getCreateTime ());
-					List<Transaction> notifyTransactionListener = new ArrayList<Transaction> ();
-					List<Transaction> notifyConfirmationListener = new ArrayList<Transaction> ();
-					updateWithTransaction (t, notifyTransactionListener, notifyConfirmationListener);
-					addedOrReorged.addAll (notifyTransactionListener);
-					reorgedTransactions.removeAll (notifyTransactionListener);
-				}
-				height = b.getHeight ();
-			}
-		}
-		for ( Transaction n : reorgedTransactions )
-		{
-			notifyListener (n);
-		}
-		for ( Transaction n : addedOrReorged )
-		{
-			notifyListener (n);
-		}
-	}
-
-	public int getHeight ()
-	{
-		return height;
+		return transactions.contains (t);
 	}
 
 	@Override

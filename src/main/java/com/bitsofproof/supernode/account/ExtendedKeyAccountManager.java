@@ -137,6 +137,7 @@ public class ExtendedKeyAccountManager extends BaseTransactionFactory
 		return id;
 	}
 
+	@Override
 	public Key getKeyForAddress (Address address)
 	{
 		Integer keyId = getKeyIDForAddress (address);
@@ -163,7 +164,7 @@ public class ExtendedKeyAccountManager extends BaseTransactionFactory
 	private final TransactionListener processor = new TransactionListener ()
 	{
 		@Override
-		public void process (Transaction t)
+		public boolean process (Transaction t)
 		{
 			for ( TransactionOutput o : t.getOutputs () )
 			{
@@ -174,7 +175,7 @@ public class ExtendedKeyAccountManager extends BaseTransactionFactory
 					nextSequence = Math.max (nextSequence, thisKey + 1);
 				}
 			}
-			updateWithTransaction (t);
+			return updateWithTransaction (t);
 		}
 	};
 
