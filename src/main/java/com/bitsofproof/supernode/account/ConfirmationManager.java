@@ -69,11 +69,13 @@ public class ConfirmationManager implements TrunkListener
 
 		if ( !trunk.isEmpty () && !trunk.getFirst ().equals (first.getPreviousHash ()) )
 		{
+			log.trace ("Chain reorg through " + first.getHash ());
 			if ( trunk.contains (first.getPreviousHash ()) )
 			{
 				do
 				{
 					String removed = trunk.removeFirst ();
+					log.trace ("Removing block " + removed);
 					if ( confirmations.containsKey (removed) )
 					{
 						for ( Transaction t : confirmations.get (removed) )
@@ -86,10 +88,26 @@ public class ConfirmationManager implements TrunkListener
 					}
 				} while ( !first.getPreviousHash ().equals (trunk.getFirst ()) );
 			}
+			else
+			{
+				log.trace ("Removing all blocks");
+				trunk.clear ();
+				for ( String removed : confirmations.keySet () )
+				{
+					for ( Transaction t : confirmations.get (removed) )
+					{
+						t.setBlockHash (null);
+						t.setBlocktime (new Date ().getTime () / 1000);
+						t.setHeight (0);
+					}
+					reorgedTransactions.addAll (confirmations.remove (removed));
+				}
+			}
 		}
 		for ( Block b : added )
 		{
 			trunk.addFirst (b.getHash ());
+			log.trace ("New highest block " + trunk.getFirst ());
 			if ( b.getTransactions () != null )
 			{
 				for ( Transaction t : b.getTransactions () )
@@ -104,6 +122,7 @@ public class ConfirmationManager implements TrunkListener
 					{
 						if ( account.process (t) || account.isKnownTransaction (t) )
 						{
+							log.trace ("confirmation for " + t.getHash ());
 							cache = true;
 						}
 					}
@@ -114,11 +133,16 @@ public class ConfirmationManager implements TrunkListener
 					}
 				}
 			}
+			else
+			{
+				log.warn ("Header received instead of a block " + trunk.getFirst ());
+			}
 			height = b.getHeight ();
 		}
 
 		for ( Transaction n : reorgedTransactions )
 		{
+			log.trace ("un-confirmed " + n.getHash ());
 			notifyListener (n);
 		}
 	}
@@ -136,7 +160,7 @@ public class ConfirmationManager implements TrunkListener
 					{
 						if ( pi.getSourceHash ().equals (input.getSourceHash ()) && pi.getIx () == input.getIx () )
 						{
-							log.trace ("Double spend " + t.getHash () + " replaces " + prev.getHash ());
+
 							prev.setHeight (0);
 							prev.setBlockHash (null);
 							prev.setOffendingTx (t.getHash ());
@@ -149,6 +173,7 @@ public class ConfirmationManager implements TrunkListener
 		}
 		for ( Transaction f : doubleSpent )
 		{
+			log.trace ("Double spend " + t.getHash () + " replaces " + f.getHash ());
 			for ( AccountManager account : accounts )
 			{
 				account.process (f);
