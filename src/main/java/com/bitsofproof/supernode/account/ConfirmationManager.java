@@ -39,6 +39,11 @@ public class ConfirmationManager implements TrunkListener
 		accounts.add (account);
 	}
 
+	public synchronized void removeAccount (AccountManager account)
+	{
+		accounts.remove (account);
+	}
+
 	public synchronized void init (BCSAPI api, int trunkLength) throws BCSAPIException
 	{
 		trunk.clear ();
