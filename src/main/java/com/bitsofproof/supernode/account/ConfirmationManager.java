@@ -133,10 +133,6 @@ public class ConfirmationManager implements TrunkListener
 					}
 				}
 			}
-			else
-			{
-				log.warn ("Header received instead of a block " + trunk.getFirst ());
-			}
 			height = b.getHeight ();
 		}
 
