@@ -88,6 +88,11 @@ public abstract class BaseTransactionFactory extends BaseAccountManager implemen
 		return transaction;
 	}
 
+	protected TransactionSource createTransactionSource (TransactionOutput output)
+	{
+		return new TransactionSource (output, this);
+	}
+
 	protected List<TransactionSource> getSufficientSources (long amount, long fee)
 	{
 		List<TransactionSource> candidates = new ArrayList<> ();
@@ -95,7 +100,7 @@ public abstract class BaseTransactionFactory extends BaseAccountManager implemen
 		{
 			if ( !isReserved (o.getTxHash (), o.getIx ()) )
 			{
-				candidates.add (new TransactionSource (o, this));
+				candidates.add (createTransactionSource (o));
 			}
 		}
 		// prefer confirmed
@@ -113,7 +118,7 @@ public abstract class BaseTransactionFactory extends BaseAccountManager implemen
 		{
 			if ( !isReserved (o.getTxHash (), o.getIx ()) )
 			{
-				candidates.add (new TransactionSource (o, this));
+				candidates.add (createTransactionSource (o));
 			}
 		}
 		// ... then change
