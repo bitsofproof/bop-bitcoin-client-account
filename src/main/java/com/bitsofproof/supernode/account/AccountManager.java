@@ -21,11 +21,12 @@ import java.util.Set;
 import com.bitsofproof.supernode.api.Address;
 import com.bitsofproof.supernode.api.BCSAPI;
 import com.bitsofproof.supernode.api.BCSAPIException;
+import com.bitsofproof.supernode.api.RejectListener;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
 import com.bitsofproof.supernode.api.TransactionOutput;
 
-public interface AccountManager extends TransactionListener
+public interface AccountManager extends TransactionListener, RejectListener
 {
 	public interface UTXO
 	{

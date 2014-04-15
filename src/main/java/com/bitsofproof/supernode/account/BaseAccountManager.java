@@ -18,7 +18,9 @@ package com.bitsofproof.supernode.account;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -38,7 +40,7 @@ public abstract class BaseAccountManager implements AccountManager
 	private UTXO sending = createSendingUTXO ();
 
 	private final Set<AccountListener> accountListener = Collections.synchronizedSet (new HashSet<AccountListener> ());
-	private final Set<Transaction> transactions = new HashSet<> ();
+	private final Map<String, Transaction> transactions = new HashMap<> ();
 
 	private long created;
 
@@ -102,14 +104,14 @@ public abstract class BaseAccountManager implements AccountManager
 	private boolean updateWithDoubleSpent (Transaction t)
 	{
 		removeOutput (t);
-		return transactions.remove (t);
+		return transactions.remove (t.getHash ()) != null;
 	}
 
 	private boolean updateWithExpiredTransaction (Transaction t)
 	{
 		log.trace ("Remove expired " + t.getHash ());
 		removeOutput (t);
-		return transactions.remove (t);
+		return transactions.remove (t.getHash ()) != null;
 	}
 
 	private boolean updateWithRegularTransaction (Transaction t)
@@ -118,7 +120,7 @@ public abstract class BaseAccountManager implements AccountManager
 		boolean modified = processOutputs (t, spending);
 		if ( modified )
 		{
-			transactions.add (t);
+			transactions.put (t.getHash (), t);
 		}
 		return modified;
 	}
@@ -325,14 +327,65 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	@Override
+	public void rejected (String command, String hash, String reason, int rejectionCode)
+	{
+		Transaction revert = null;
+		synchronized ( this )
+		{
+			if ( command.equals ("tx") && transactions.containsKey (hash) )
+			{
+				revert = transactions.get (hash);
+
+				removeOutput (revert);
+
+				for ( TransactionInput input : revert.getInputs () )
+				{
+					Transaction prev = transactions.get (input.getSourceHash ());
+					if ( prev.getBlockHash () != null )
+					{
+						confirmed.add (prev.getOutputs ().get ((int) input.getIx ()));
+					}
+					else
+					{
+						boolean spend = false;
+						for ( TransactionInput pin : prev.getInputs () )
+						{
+							if ( transactions.containsKey (pin.getSourceHash ()) )
+							{
+								spend = true;
+								break;
+							}
+						}
+						if ( spend )
+						{
+							change.add (prev.getOutputs ().get ((int) input.getIx ()));
+						}
+						else
+						{
+							receiving.add (prev.getOutputs ().get ((int) input.getIx ()));
+						}
+					}
+				}
+				transactions.remove (hash);
+			}
+		}
+		if ( revert != null )
+		{
+			notifyListener (revert);
+		}
+	}
+
+	@Override
 	public synchronized boolean isKnownTransaction (Transaction t)
 	{
-		return transactions.contains (t);
+		return transactions.containsKey (t.getHash ());
 	}
 
 	@Override
 	public synchronized Set<Transaction> getTransactions ()
 	{
-		return Collections.unmodifiableSet (transactions);
+		Set<Transaction> ts = new HashSet<Transaction> ();
+		ts.addAll (transactions.values ());
+		return ts;
 	}
 }
