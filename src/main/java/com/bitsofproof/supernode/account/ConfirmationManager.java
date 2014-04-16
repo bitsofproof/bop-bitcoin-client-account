@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -92,15 +93,18 @@ public class ConfirmationManager implements TrunkListener
 			{
 				log.trace ("Removing all blocks");
 				trunk.clear ();
-				for ( String removed : confirmations.keySet () )
+				Iterator<String> ri = confirmations.keySet ().iterator ();
+				while ( ri.hasNext () )
 				{
+					String removed = ri.next ();
 					for ( Transaction t : confirmations.get (removed) )
 					{
 						t.setBlockHash (null);
 						t.setBlocktime (new Date ().getTime () / 1000);
 						t.setHeight (0);
+						reorgedTransactions.add (t);
 					}
-					reorgedTransactions.addAll (confirmations.remove (removed));
+					ri.remove ();
 				}
 			}
 		}
