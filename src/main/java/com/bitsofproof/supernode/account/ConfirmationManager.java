@@ -156,16 +156,18 @@ public class ConfirmationManager implements TrunkListener
 			{
 				for ( Transaction prev : inputs.get (input.getSourceHash ()) )
 				{
-					for ( TransactionInput pi : prev.getInputs () )
+					if ( !prev.equals (t) )
 					{
-						if ( pi.getSourceHash ().equals (input.getSourceHash ()) && pi.getIx () == input.getIx () )
+						for ( TransactionInput pi : prev.getInputs () )
 						{
-
-							prev.setHeight (0);
-							prev.setBlockHash (null);
-							prev.setOffendingTx (t.getHash ());
-							doubleSpent.add (prev);
-							break;
+							if ( pi.getSourceHash ().equals (input.getSourceHash ()) && pi.getIx () == input.getIx () )
+							{
+								prev.setHeight (0);
+								prev.setBlockHash (null);
+								prev.setOffendingTx (t.getHash ());
+								doubleSpent.add (prev);
+								break;
+							}
 						}
 					}
 				}
