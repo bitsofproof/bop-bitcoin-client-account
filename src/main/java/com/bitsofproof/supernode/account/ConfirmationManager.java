@@ -45,16 +45,21 @@ public class ConfirmationManager implements TrunkListener
 		accounts.remove (account);
 	}
 
-	public synchronized void init (BCSAPI api, int trunkLength) throws BCSAPIException
+	public synchronized void init (BCSAPI api, int trunkLength, List<String> inventory) throws BCSAPIException
 	{
 		trunk.clear ();
+		if ( inventory != null )
+		{
+			Collections.copy (trunk, inventory);
+		}
 		api.catchUp (trunk, trunkLength, true, this);
+		Block highest = api.getBlockHeader (trunk.getFirst ());
+		height = highest.getHeight ();
 	}
 
-	public synchronized void init (List<String> inventory)
+	public synchronized void init (BCSAPI api, int trunkLength) throws BCSAPIException
 	{
-		trunk.clear ();
-		Collections.copy (inventory, trunk);
+		init (api, trunkLength, null);
 	}
 
 	public synchronized int getHeight ()
@@ -145,6 +150,7 @@ public class ConfirmationManager implements TrunkListener
 			log.trace ("un-confirmed " + n.getHash ());
 			notifyListener (n);
 		}
+		notifyListener (null);
 	}
 
 	private void checkDoubleSpend (Transaction t)
@@ -237,7 +243,14 @@ public class ConfirmationManager implements TrunkListener
 		{
 			try
 			{
-				l.confirmed (t);
+				if ( t != null )
+				{
+					l.confirmed (t);
+				}
+				else
+				{
+					l.newHeight (height);
+				}
 			}
 			catch ( Exception e )
 			{
