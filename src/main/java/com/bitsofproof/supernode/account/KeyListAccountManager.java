@@ -31,7 +31,6 @@ import com.bitsofproof.supernode.api.BCSAPI;
 import com.bitsofproof.supernode.api.BCSAPIException;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
-import com.bitsofproof.supernode.common.BloomFilter.UpdateMode;
 import com.bitsofproof.supernode.common.ECKeyPair;
 import com.bitsofproof.supernode.common.Key;
 import com.bitsofproof.supernode.common.ValidationException;
@@ -72,7 +71,7 @@ public class KeyListAccountManager extends BaseTransactionFactory
 	{
 		reset ();
 		log.trace ("Sync naddr: " + keys.size ());
-		api.scanTransactionsForAddresses (getAddresses (), UpdateMode.all, getCreated (), new TransactionListener ()
+		api.scanTransactionsForAddresses (getAddresses (), getCreated (), new TransactionListener ()
 		{
 			@Override
 			public boolean process (Transaction t)
@@ -88,7 +87,7 @@ public class KeyListAccountManager extends BaseTransactionFactory
 	{
 		reset ();
 		log.trace ("Sync naddr: " + keys.size ());
-		api.scanUTXOForAddresses (getAddresses (), UpdateMode.all, getCreated (), new TransactionListener ()
+		api.scanUTXOForAddresses (getAddresses (), new TransactionListener ()
 		{
 			@Override
 			public boolean process (Transaction t)

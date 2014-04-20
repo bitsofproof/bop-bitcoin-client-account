@@ -27,7 +27,6 @@ import com.bitsofproof.supernode.api.BCSAPI;
 import com.bitsofproof.supernode.api.BCSAPIException;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionListener;
-import com.bitsofproof.supernode.common.BloomFilter.UpdateMode;
 
 public class AddressListAccountManager extends BaseAccountManager
 {
@@ -57,7 +56,7 @@ public class AddressListAccountManager extends BaseAccountManager
 	{
 		reset ();
 		log.trace ("Sync naddr: " + addresses.size ());
-		api.scanTransactionsForAddresses (getAddresses (), UpdateMode.all, getCreated (), new TransactionListener ()
+		api.scanTransactionsForAddresses (getAddresses (), getCreated (), new TransactionListener ()
 		{
 			@Override
 			public boolean process (Transaction t)
@@ -73,7 +72,7 @@ public class AddressListAccountManager extends BaseAccountManager
 	{
 		reset ();
 		log.trace ("Sync naddr: " + addresses.size ());
-		api.scanUTXOForAddresses (getAddresses (), UpdateMode.all, getCreated (), new TransactionListener ()
+		api.scanUTXOForAddresses (getAddresses (), new TransactionListener ()
 		{
 			@Override
 			public boolean process (Transaction t)
