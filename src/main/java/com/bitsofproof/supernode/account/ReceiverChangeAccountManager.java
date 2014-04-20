@@ -40,7 +40,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 		return master;
 	}
 
-	public void setMaster (ExtendedKey master) throws ValidationException
+	public synchronized void setMaster (ExtendedKey master) throws ValidationException
 	{
 		this.master = master;
 
@@ -71,13 +71,13 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 		return receiver.getFirstIndex ();
 	}
 
-	public void setLookAhead (int lookAhead)
+	public synchronized void setLookAhead (int lookAhead)
 	{
 		receiver.setLookAhead (lookAhead);
 		change.setLookAhead (lookAhead);
 	}
 
-	public void setFirstIndex (int firstIndex)
+	public synchronized void setFirstIndex (int firstIndex)
 	{
 		receiver.setFirstIndex (firstIndex);
 		change.setFirstIndex (firstIndex);
@@ -108,7 +108,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 		return false;
 	}
 
-	public int[] getKeyPathForAddresss (Address address)
+	public synchronized int[] getKeyPathForAddresss (Address address)
 	{
 		Integer rk = receiver.getKeyIDForAddress (address);
 		if ( rk != null )
@@ -124,7 +124,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public Key getKeyForAddress (Address address)
+	public synchronized Key getKeyForAddress (Address address)
 	{
 		Key key = receiver.getKeyForAddress (address);
 		if ( key == null )
@@ -135,7 +135,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public Set<Address> getAddresses ()
+	public synchronized Set<Address> getAddresses ()
 	{
 		Set<Address> all = new HashSet<> ();
 		all.addAll (receiver.getAddresses ());
@@ -144,7 +144,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public boolean process (Transaction t)
+	public synchronized boolean process (Transaction t)
 	{
 		boolean notified = change.process (t);
 		notified |= receiver.process (t);
@@ -227,7 +227,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public void syncHistory (BCSAPI api) throws BCSAPIException
+	public synchronized void syncHistory (BCSAPI api) throws BCSAPIException
 	{
 		receiver.syncHistory (api);
 		change.syncHistory (api);
@@ -240,7 +240,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public boolean isOwnAddress (Address address)
+	public synchronized boolean isOwnAddress (Address address)
 	{
 		return change.isOwnAddress (address) || receiver.isOwnAddress (address);
 	}
