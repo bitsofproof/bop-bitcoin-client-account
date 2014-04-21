@@ -16,12 +16,12 @@
 package com.bitsofproof.supernode.account;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +33,6 @@ import com.bitsofproof.supernode.api.TransactionOutput;
 public abstract class BaseAccountManager implements AccountManager
 {
 	private static final Logger log = LoggerFactory.getLogger (BaseAccountManager.class);
-
-	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock ();
 
 	private UTXO confirmed = createConfirmedUTXO ();
 	private UTXO change = createChangeUTXO ();
@@ -77,48 +75,30 @@ public abstract class BaseAccountManager implements AccountManager
 		return new InMemoryUTXO ();
 	}
 
-	protected void reset ()
+	protected synchronized void reset ()
 	{
-		try
-		{
-			lock.writeLock ().lock ();
-
-			confirmed = createConfirmedUTXO ();
-			change = createChangeUTXO ();
-			receiving = createReceivingUTXO ();
-			sending = createSendingUTXO ();
-		}
-		finally
-		{
-			lock.writeLock ().unlock ();
-		}
+		confirmed = createConfirmedUTXO ();
+		change = createChangeUTXO ();
+		receiving = createReceivingUTXO ();
+		sending = createSendingUTXO ();
 	}
 
-	public boolean updateWithTransaction (Transaction t)
+	public synchronized boolean updateWithTransaction (Transaction t)
 	{
-		try
+		boolean modified = false;
+		if ( t.getOffendingTx () != null )
 		{
-			lock.writeLock ().lock ();
-
-			boolean modified = false;
-			if ( t.getOffendingTx () != null )
-			{
-				modified = updateWithDoubleSpent (t);
-			}
-			else if ( t.isExpired () )
-			{
-				modified = updateWithExpiredTransaction (t);
-			}
-			else
-			{
-				modified = updateWithRegularTransaction (t);
-			}
-			return modified;
+			modified = updateWithDoubleSpent (t);
 		}
-		finally
+		else if ( t.isExpired () )
 		{
-			lock.writeLock ().unlock ();
+			modified = updateWithExpiredTransaction (t);
 		}
+		else
+		{
+			modified = updateWithRegularTransaction (t);
+		}
+		return modified;
 	}
 
 	private boolean updateWithDoubleSpent (Transaction t)
@@ -228,157 +208,81 @@ public abstract class BaseAccountManager implements AccountManager
 		}
 	}
 
-	private void removeOutput (String hash, long ix)
-	{
-		removeOutput (confirmed, hash, ix);
-		removeOutput (change, hash, ix);
-		removeOutput (receiving, hash, ix);
-		removeOutput (sending, hash, ix);
-	}
-
-	private void removeOutput (UTXO utxo, String hash, long ix)
+	private TransactionOutput removeOutput (String hash, long ix)
 	{
 		TransactionOutput out;
 		out = confirmed.remove (hash, ix);
+		if ( out == null )
+		{
+			out = change.remove (hash, ix);
+		}
+		if ( out == null )
+		{
+			out = receiving.remove (hash, ix);
+		}
+		if ( out == null )
+		{
+			out = sending.remove (hash, ix);
+		}
 		if ( out != null )
 		{
 			log.trace ("Remove " + out.getTxHash () + " [" + out.getIx () + "] (" + out.getOutputAddress () + ") " + out.getValue ());
 		}
+		return out;
 	}
 
 	@Override
-	public long getBalance ()
+	public synchronized long getBalance ()
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			return confirmed.getTotal () + change.getTotal () + receiving.getTotal ();
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		return confirmed.getTotal () + change.getTotal () + receiving.getTotal ();
 	}
 
 	@Override
-	public long getConfirmed ()
+	public synchronized long getConfirmed ()
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			return confirmed.getTotal ();
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		return confirmed.getTotal ();
 	}
 
 	@Override
-	public long getSending ()
+	public synchronized long getSending ()
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			return sending.getTotal ();
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		return sending.getTotal ();
 	}
 
 	@Override
-	public long getReceiving ()
+	public synchronized long getReceiving ()
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			return receiving.getTotal ();
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		return receiving.getTotal ();
 	}
 
 	@Override
-	public long getChange ()
+	public synchronized long getChange ()
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			return change.getTotal ();
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		return change.getTotal ();
 	}
 
 	@Override
-	public Set<TransactionOutput> getConfirmedOutputs ()
+	public synchronized Collection<TransactionOutput> getConfirmedOutputs ()
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			return confirmed.getUTXO ();
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		return confirmed.getUTXO ();
 	}
 
 	@Override
-	public Set<TransactionOutput> getSendingOutputs ()
+	public synchronized Collection<TransactionOutput> getSendingOutputs ()
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			return sending.getUTXO ();
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		return sending.getUTXO ();
 	}
 
 	@Override
-	public Set<TransactionOutput> getReceivingOutputs ()
+	public synchronized Collection<TransactionOutput> getReceivingOutputs ()
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			return receiving.getUTXO ();
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		return receiving.getUTXO ();
 	}
 
 	@Override
-	public Set<TransactionOutput> getChangeOutputs ()
+	public synchronized Collection<TransactionOutput> getChangeOutputs ()
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			return change.getUTXO ();
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		return change.getUTXO ();
 	}
 
 	@Override
@@ -428,10 +332,8 @@ public abstract class BaseAccountManager implements AccountManager
 	public void rejected (String command, String hash, String reason, int rejectionCode)
 	{
 		Transaction revert = null;
-		try
+		synchronized ( this )
 		{
-			lock.writeLock ().lock ();
-
 			if ( command.equals ("tx") && transactions.containsKey (hash) )
 			{
 				revert = transactions.get (hash);
@@ -469,10 +371,6 @@ public abstract class BaseAccountManager implements AccountManager
 				transactions.remove (hash);
 			}
 		}
-		finally
-		{
-			lock.writeLock ().unlock ();
-		}
 		if ( revert != null )
 		{
 			notifyListener (revert);
@@ -480,34 +378,16 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	@Override
-	public boolean isKnownTransaction (Transaction t)
+	public synchronized boolean isKnownTransaction (Transaction t)
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			return transactions.containsKey (t.getHash ());
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		return transactions.containsKey (t.getHash ());
 	}
 
 	@Override
 	public synchronized Set<Transaction> getTransactions ()
 	{
-		try
-		{
-			lock.readLock ().lock ();
-
-			Set<Transaction> ts = new HashSet<Transaction> ();
-			ts.addAll (transactions.values ());
-			return ts;
-		}
-		finally
-		{
-			lock.readLock ().unlock ();
-		}
+		Set<Transaction> ts = new HashSet<Transaction> ();
+		ts.addAll (transactions.values ());
+		return ts;
 	}
 }

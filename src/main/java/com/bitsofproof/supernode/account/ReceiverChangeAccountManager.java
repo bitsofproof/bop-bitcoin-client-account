@@ -15,6 +15,7 @@
  */
 package com.bitsofproof.supernode.account;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -43,15 +44,26 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	{
 		this.master = master;
 
+		AccountListener listener = new AccountListener ()
+		{
+			@Override
+			public void accountChanged (AccountManager account, Transaction t)
+			{
+				notifyListener (t);
+			}
+		};
+
 		receiver.setFirstIndex (getFirstIndex ());
 		receiver.setLookAhead (getLookAhead ());
 		receiver.setCreated (getCreated ());
 		receiver.setMaster (master.getChild (0));
+		receiver.addAccountListener (listener);
 
 		change.setFirstIndex (getFirstIndex ());
 		change.setLookAhead (getLookAhead ());
 		change.setCreated (getCreated ());
 		change.setMaster (master.getChild (1));
+		change.addAccountListener (listener);
 	}
 
 	public int getFirstIndex ()
@@ -134,17 +146,13 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	@Override
 	public synchronized boolean process (Transaction t)
 	{
-		boolean notify = change.process (t);
-		notify |= receiver.process (t);
-		if ( notify )
-		{
-			notifyListener (t);
-		}
-		return notify;
+		boolean notified = change.process (t);
+		notified |= receiver.process (t);
+		return notified;
 	}
 
 	@Override
-	public synchronized Set<TransactionOutput> getConfirmedOutputs ()
+	public synchronized Collection<TransactionOutput> getConfirmedOutputs ()
 	{
 		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
 		outs.addAll (receiver.getConfirmedOutputs ());
@@ -153,7 +161,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public synchronized Set<TransactionOutput> getSendingOutputs ()
+	public synchronized Collection<TransactionOutput> getSendingOutputs ()
 	{
 		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
 		outs.addAll (receiver.getSendingOutputs ());
@@ -162,7 +170,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public synchronized Set<TransactionOutput> getReceivingOutputs ()
+	public synchronized Collection<TransactionOutput> getReceivingOutputs ()
 	{
 		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
 		outs.addAll (receiver.getReceivingOutputs ());
@@ -171,7 +179,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public synchronized Set<TransactionOutput> getChangeOutputs ()
+	public synchronized Collection<TransactionOutput> getChangeOutputs ()
 	{
 		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
 		outs.addAll (receiver.getChangeOutputs ());

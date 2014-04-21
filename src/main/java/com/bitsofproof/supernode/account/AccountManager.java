@@ -15,6 +15,7 @@
  */
 package com.bitsofproof.supernode.account;
 
+import java.util.Collection;
 import java.util.Set;
 
 import com.bitsofproof.supernode.api.Address;
@@ -32,7 +33,7 @@ public interface AccountManager extends TransactionListener, RejectListener
 
 		public boolean add (TransactionOutput out);
 
-		public Set<TransactionOutput> getUTXO ();
+		public Collection<TransactionOutput> getUTXO ();
 
 		public TransactionOutput get (String tx, long ix);
 
@@ -62,13 +63,13 @@ public interface AccountManager extends TransactionListener, RejectListener
 
 	public long getChange ();
 
-	public Set<TransactionOutput> getConfirmedOutputs ();
+	public Collection<TransactionOutput> getConfirmedOutputs ();
 
-	public Set<TransactionOutput> getSendingOutputs ();
+	public Collection<TransactionOutput> getSendingOutputs ();
 
-	public Set<TransactionOutput> getReceivingOutputs ();
+	public Collection<TransactionOutput> getReceivingOutputs ();
 
-	public Set<TransactionOutput> getChangeOutputs ();
+	public Collection<TransactionOutput> getChangeOutputs ();
 
 	public Set<Transaction> getTransactions ();
 

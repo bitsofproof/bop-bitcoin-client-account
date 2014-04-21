@@ -15,10 +15,10 @@
  */
 package com.bitsofproof.supernode.account;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import com.bitsofproof.supernode.api.TransactionOutput;
 
@@ -59,11 +59,9 @@ public class InMemoryUTXO implements AccountManager.UTXO
 	}
 
 	@Override
-	public Set<TransactionOutput> getUTXO ()
+	public Collection<TransactionOutput> getUTXO ()
 	{
-		Set<TransactionOutput> clone = new HashSet<> (utxo.size ());
-		clone.addAll (utxo.values ());
-		return clone;
+		return Collections.unmodifiableCollection (utxo.values ());
 	}
 
 	@Override
