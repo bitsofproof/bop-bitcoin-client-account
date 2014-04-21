@@ -16,7 +16,6 @@
 package com.bitsofproof.supernode.account;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -262,25 +261,25 @@ public abstract class BaseAccountManager implements AccountManager
 	}
 
 	@Override
-	public synchronized Collection<TransactionOutput> getConfirmedOutputs ()
+	public synchronized Set<TransactionOutput> getConfirmedOutputs ()
 	{
 		return confirmed.getUTXO ();
 	}
 
 	@Override
-	public synchronized Collection<TransactionOutput> getSendingOutputs ()
+	public synchronized Set<TransactionOutput> getSendingOutputs ()
 	{
 		return sending.getUTXO ();
 	}
 
 	@Override
-	public synchronized Collection<TransactionOutput> getReceivingOutputs ()
+	public synchronized Set<TransactionOutput> getReceivingOutputs ()
 	{
 		return receiving.getUTXO ();
 	}
 
 	@Override
-	public synchronized Collection<TransactionOutput> getChangeOutputs ()
+	public synchronized Set<TransactionOutput> getChangeOutputs ()
 	{
 		return change.getUTXO ();
 	}

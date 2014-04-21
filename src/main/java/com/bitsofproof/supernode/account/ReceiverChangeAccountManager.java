@@ -15,7 +15,6 @@
  */
 package com.bitsofproof.supernode.account;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -149,7 +148,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public synchronized Collection<TransactionOutput> getConfirmedOutputs ()
+	public synchronized Set<TransactionOutput> getConfirmedOutputs ()
 	{
 		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
 		outs.addAll (receiver.getConfirmedOutputs ());
@@ -158,7 +157,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public synchronized Collection<TransactionOutput> getSendingOutputs ()
+	public synchronized Set<TransactionOutput> getSendingOutputs ()
 	{
 		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
 		outs.addAll (receiver.getSendingOutputs ());
@@ -167,7 +166,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public synchronized Collection<TransactionOutput> getReceivingOutputs ()
+	public synchronized Set<TransactionOutput> getReceivingOutputs ()
 	{
 		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
 		outs.addAll (receiver.getReceivingOutputs ());
@@ -176,7 +175,7 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	}
 
 	@Override
-	public synchronized Collection<TransactionOutput> getChangeOutputs ()
+	public synchronized Set<TransactionOutput> getChangeOutputs ()
 	{
 		Set<TransactionOutput> outs = new HashSet<TransactionOutput> ();
 		outs.addAll (receiver.getChangeOutputs ());
