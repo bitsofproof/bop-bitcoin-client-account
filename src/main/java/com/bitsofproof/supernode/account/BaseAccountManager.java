@@ -170,9 +170,10 @@ public abstract class BaseAccountManager implements AccountManager
 
 	private boolean processInputs (Transaction t)
 	{
-		TransactionOutput spend = null;
+		boolean spends = false;
 		for ( TransactionInput input : t.getInputs () )
 		{
+			TransactionOutput spend;
 			spend = confirmed.remove (input.getSourceHash (), input.getIx ());
 			if ( spend != null )
 			{
@@ -194,8 +195,9 @@ public abstract class BaseAccountManager implements AccountManager
 					}
 				}
 			}
+			spends |= spend != null;
 		}
-		return spend != null;
+		return spends;
 	}
 
 	private void removeOutput (Transaction t)
