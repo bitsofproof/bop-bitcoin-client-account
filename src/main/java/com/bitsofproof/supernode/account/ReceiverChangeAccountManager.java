@@ -44,26 +44,15 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	{
 		this.master = master;
 
-		AccountListener listener = new AccountListener ()
-		{
-			@Override
-			public void accountChanged (AccountManager account, Transaction t)
-			{
-				notifyListener (t);
-			}
-		};
-
 		receiver.setFirstIndex (getFirstIndex ());
 		receiver.setLookAhead (getLookAhead ());
 		receiver.setCreated (getCreated ());
 		receiver.setMaster (master.getChild (0));
-		receiver.addAccountListener (listener);
 
 		change.setFirstIndex (getFirstIndex ());
 		change.setLookAhead (getLookAhead ());
 		change.setCreated (getCreated ());
 		change.setMaster (master.getChild (1));
-		change.addAccountListener (listener);
 	}
 
 	public int getFirstIndex ()
@@ -148,6 +137,10 @@ public class ReceiverChangeAccountManager extends BaseTransactionFactory
 	{
 		boolean notified = change.process (t);
 		notified |= receiver.process (t);
+		if ( notified )
+		{
+			notifyListener (t);
+		}
 		return notified;
 	}
 
