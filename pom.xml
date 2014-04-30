@@ -2,7 +2,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.bitsofproof</groupId>
 	<artifactId>bop-bitcoin-client-account</artifactId>
-	<version>3.4.4</version>
+	<version>3.4.5-SNAPSHOT</version>
 	<name>bop-bitcoin-client-account</name>
 	<description>The BOP Bitcoin Client Side Account Manager</description>
 	<packaging>jar</packaging>

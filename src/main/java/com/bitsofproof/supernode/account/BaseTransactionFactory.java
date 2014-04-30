@@ -22,6 +22,8 @@ public abstract class BaseTransactionFactory extends BaseAccountManager implemen
 {
 	private static final Logger log = LoggerFactory.getLogger (BaseTransactionFactory.class);
 
+	private static final long DUST_LIMIT = 5430;
+	private static final long KB_FEE = 1000;
 	private static final long MINIMUM_FEE = 10000;
 	private static final long MAXIMUM_FEE = 1000000;
 
@@ -37,7 +39,7 @@ public abstract class BaseTransactionFactory extends BaseAccountManager implemen
 	{
 		WireFormat.Writer writer = new WireFormat.Writer ();
 		t.toWire (writer);
-		return Math.min (MAXIMUM_FEE, (writer.toByteArray ().length + 1000) / 1000 * MINIMUM_FEE);
+		return Math.max (Math.min (MAXIMUM_FEE, (writer.toByteArray ().length + 1000) / 1000 * KB_FEE), MINIMUM_FEE);
 	}
 
 	protected Transaction createTransaction (List<TransactionSource> sources, List<TransactionSink> sinks, long fee) throws ValidationException
@@ -202,12 +204,16 @@ public abstract class BaseTransactionFactory extends BaseAccountManager implemen
 			TransactionSink last = sinks.get (sinks.size () - 1);
 			sinks.set (sinks.size () - 1, new TransactionSink (last.getScript (), Math.max (last.getValue () - fee, 0)));
 		}
-		if ( ((in - amount) - (senderPaysFee ? fee : 0)) >= MINIMUM_FEE )
+		if ( ((in - amount) - (senderPaysFee ? fee : 0)) > DUST_LIMIT )
 		{
 			Address changeAddress = getNextChangeAddress ();
 			TransactionSink change = new TransactionSink (changeAddress.getAddressScript (), in - amount - (senderPaysFee ? fee : 0));
 			log.trace ("change to " + changeAddress + " " + change.getValue ());
 			sinks.add (change);
+		}
+		else
+		{
+			fee = in - amount;
 		}
 		Collections.shuffle (sinks);
 		return createTransaction (sources, sinks, fee);
