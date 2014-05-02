@@ -1,5 +1,6 @@
 package com.bitsofproof.supernode.account;
 
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -11,6 +12,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.bitsofproof.supernode.account.PaymentOptions.Priority;
 import com.bitsofproof.supernode.api.Address;
 import com.bitsofproof.supernode.api.Transaction;
 import com.bitsofproof.supernode.api.TransactionInput;
@@ -27,6 +29,8 @@ public abstract class BaseTransactionFactory extends BaseAccountManager implemen
 	private static final long MINIMUM_FEE = 10000;
 	private static final long MAXIMUM_FEE = 1000000;
 
+	private static final SecureRandom random = new SecureRandom ();
+
 	private Set<String> reserved = Collections.synchronizedSet (new HashSet<String> ());
 
 	@Override
@@ -35,11 +39,17 @@ public abstract class BaseTransactionFactory extends BaseAccountManager implemen
 	@Override
 	public abstract Address getNextReceiverAddress () throws ValidationException;
 
-	public static long estimateFee (Transaction t)
+	public static long estimateFee (Transaction t, Priority priority)
 	{
 		WireFormat.Writer writer = new WireFormat.Writer ();
 		t.toWire (writer);
-		return Math.max (Math.min (MAXIMUM_FEE, (writer.toByteArray ().length + 1000) / 1000 * KB_FEE), MINIMUM_FEE);
+		int tsd = (writer.toByteArray ().length + 1000) / 1000;
+		return Math.min (MAXIMUM_FEE, priority == Priority.LOW ? 0 : Math.max (tsd * (priority == Priority.NORMAL ? KB_FEE : MINIMUM_FEE), MINIMUM_FEE));
+	}
+
+	public static long estimateFee (Transaction t)
+	{
+		return estimateFee (t, Priority.NORMAL);
 	}
 
 	protected Transaction createTransaction (List<TransactionSource> sources, List<TransactionSink> sinks, long fee) throws ValidationException
@@ -173,19 +183,18 @@ public abstract class BaseTransactionFactory extends BaseAccountManager implemen
 		}
 	}
 
-	@Override
-	public Transaction pay (List<Address> receiver, List<Long> amounts, long fee, boolean senderPaysFee) throws ValidationException
+	private Transaction payFixed (List<Address> receiver, List<Long> amounts, PaymentOptions options) throws ValidationException
 	{
 		long amount = 0;
 		for ( Long a : amounts )
 		{
 			amount += a;
 		}
-		log.trace ("pay " + amount + (senderPaysFee ? " + " + fee : ""));
-		List<TransactionSource> sources = getSufficientSources (amount, senderPaysFee ? fee : 0);
+		log.trace ("pay " + amount + (options.isPaidBySender () ? " + " + options : ""));
+		List<TransactionSource> sources = getSufficientSources (amount, options.isPaidBySender () ? options.getFee () : 0);
 		if ( sources == null )
 		{
-			throw new ValidationException ("Insufficient funds to pay " + amount + (senderPaysFee ? " + " + fee : ""));
+			throw new ValidationException ("Insufficient funds to pay " + amount + " " + options);
 		}
 		long in = 0;
 		for ( TransactionSource o : sources )
@@ -199,65 +208,146 @@ public abstract class BaseTransactionFactory extends BaseAccountManager implemen
 		{
 			sinks.add (new TransactionSink (r.getAddressScript (), ai.next ()));
 		}
-		if ( !senderPaysFee )
+		long txfee = options.getFee ();
+		if ( !options.isPaidBySender () )
 		{
-			TransactionSink last = sinks.get (sinks.size () - 1);
-			sinks.set (sinks.size () - 1, new TransactionSink (last.getScript (), Math.max (last.getValue () - fee, 0)));
+			long feeCollected = 0;
+			while ( !sinks.isEmpty () && feeCollected < txfee )
+			{
+				TransactionSink last = sinks.get (sinks.size () - 1);
+				long feeAvaialable = Math.min (last.getValue (), options.getFee () - feeCollected);
+				if ( feeAvaialable == last.getValue () )
+				{
+					sinks.remove (sinks.size () - 1);
+				}
+				else
+				{
+					sinks.set (sinks.size () - 1, new TransactionSink (last.getScript (), last.getValue () - feeAvaialable));
+				}
+				feeCollected += feeAvaialable;
+			}
+			if ( feeCollected < txfee )
+			{
+				throw new ValidationException ("Can not cover fees by reducing outputs");
+			}
+			if ( sinks.isEmpty () )
+			{
+				throw new ValidationException ("No output left after paying fees");
+			}
 		}
-		if ( ((in - amount) - (senderPaysFee ? fee : 0)) > DUST_LIMIT )
+		if ( ((in - amount) - (options.isPaidBySender () ? options.getFee () : 0)) > DUST_LIMIT )
 		{
-			Address changeAddress = getNextChangeAddress ();
-			TransactionSink change = new TransactionSink (changeAddress.getAddressScript (), in - amount - (senderPaysFee ? fee : 0));
-			log.trace ("change to " + changeAddress + " " + change.getValue ());
-			sinks.add (change);
+			for ( long change : splitChange (in - amount - (options.isPaidBySender () ? options.getFee () : 0), Math.max (1, options.getChange ())) )
+			{
+				Address changeAddress = getNextChangeAddress ();
+				TransactionSink changeOutput = new TransactionSink (changeAddress.getAddressScript (), change);
+				log.trace ("change to " + changeAddress + " " + changeOutput.getValue ());
+				sinks.add (changeOutput);
+			}
 		}
 		else
 		{
-			fee = in - amount;
+			if ( options.isPaidBySender () )
+			{
+				txfee = in - amount;
+			}
 		}
-		Collections.shuffle (sinks);
-		return createTransaction (sources, sinks, fee);
+		if ( options.isShuffled () )
+		{
+			Collections.shuffle (sinks);
+		}
+		return createTransaction (sources, sinks, txfee);
+	}
+
+	private long[] splitChange (long change, int n)
+	{
+		if ( n == 1 || change <= (n * MINIMUM_FEE) )
+		{
+			return new long[] { change };
+		}
+		else
+		{
+			long[] changes = new long[n];
+			boolean dust = false;
+
+			do
+			{
+				double[] proportions = new double[n];
+				double s = 0;
+				for ( int i = 0; i < n; ++i )
+				{
+					s += proportions[i] = Math.exp (1 - random.nextDouble ());
+				}
+				long cs = 0;
+				for ( int i = 0; i < n; ++i )
+				{
+					cs += changes[i] = ((long) Math.floor (proportions[i] / s * change / MINIMUM_FEE)) * MINIMUM_FEE;
+				}
+				changes[0] += change - cs;
+				for ( long c : changes )
+				{
+					if ( c <= DUST_LIMIT )
+					{
+						dust = true;
+					}
+				}
+			} while ( dust );
+			return changes;
+		}
 	}
 
 	@Override
-	public Transaction pay (Address receiver, long amount, long fee, boolean senderPaysFee) throws ValidationException
+	public Transaction pay (Address receiver, long amount) throws ValidationException
 	{
 		List<Address> a = new ArrayList<> ();
 		a.add (receiver);
 		List<Long> v = new ArrayList<> ();
 		v.add (amount);
-		return pay (a, v, fee, senderPaysFee);
+		return pay (a, v, PaymentOptions.common);
 	}
 
 	@Override
-	public Transaction pay (Address receiver, long amount, boolean senderPaysFee) throws ValidationException
+	public Transaction pay (Address receiver, long amount, PaymentOptions options) throws ValidationException
 	{
 		List<Address> a = new ArrayList<> ();
 		a.add (receiver);
 		List<Long> v = new ArrayList<> ();
 		v.add (amount);
-		return pay (a, v, senderPaysFee);
+		return pay (a, v, options);
 	}
 
 	@Override
-	public Transaction pay (List<Address> receiver, List<Long> amounts, boolean senderPaysFee) throws ValidationException
+	public Transaction pay (List<Address> receiver, List<Long> amounts, PaymentOptions options) throws ValidationException
 	{
-		long fee = MINIMUM_FEE;
-		long estimate = 0;
 		Transaction t;
 
-		do
+		if ( options.isCalculated () )
 		{
-			fee = Math.max (fee, estimate);
-			t = pay (receiver, amounts, fee, senderPaysFee);
-			estimate = estimateFee (t);
-			if ( fee < estimate )
+			long estimate = 0;
+			long txfee = options.isLowPriority () ? 0 : MINIMUM_FEE;
+			do
 			{
-				log.trace ("The transaction requires more network fees. Reassembling.");
-			}
-		} while ( fee < estimate );
-
+				txfee = Math.max (txfee, estimate);
+				t = payFixed (receiver, amounts,
+						new PaymentOptions (txfee, PaymentOptions.FeeCalculation.FIXED, options.getSource (), options.getPriority (),
+								options.getOutputOrder (), options.getChange ()));
+				estimate = estimateFee (t, options.getPriority ());
+				if ( txfee < estimate )
+				{
+					log.trace ("The transaction requires more network fees. Reassembling.");
+				}
+			} while ( options.getCalculation () == PaymentOptions.FeeCalculation.CALCULATED && txfee < estimate );
+		}
+		else
+		{
+			t = payFixed (receiver, amounts, options);
+		}
 		return t;
 	}
 
+	@Override
+	public Transaction pay (List<Address> receiver, List<Long> amounts) throws ValidationException
+	{
+		return pay (receiver, amounts, PaymentOptions.common);
+	}
 }
