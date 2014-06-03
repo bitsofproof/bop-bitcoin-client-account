@@ -117,7 +117,7 @@ public abstract class BaseAccountManager implements AccountManager
 	{
 		boolean spending = processInputs (t);
 		boolean modified = processOutputs (t, spending);
-		if ( modified )
+		if ( modified || spending )
 		{
 			transactions.put (t.getHash (), t);
 		}
